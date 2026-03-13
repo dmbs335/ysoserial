@@ -31,6 +31,7 @@ public @interface Authors {
     String JANG = "Jang";
     String ARTSPLOIT = "artsploit";
     String K4n5ha0 = "k4n5ha0";
+    String BOFEI_CHEN = "BofeiC";  // JDD (S&P 2024)
 
     String[] value() default {};
 
