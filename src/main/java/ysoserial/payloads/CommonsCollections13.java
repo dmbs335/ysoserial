@@ -62,7 +62,7 @@ import ysoserial.payloads.util.Reflections;
 	"commons-collections:commons-collections:3.1",
 	"org.apache.commons:commons-collections4:4.0"
 })
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.DMBS335 })
 public class CommonsCollections13 extends PayloadRunner implements ObjectPayload<Serializable> {
 
 	public Serializable getObject(final String command) throws Exception {

