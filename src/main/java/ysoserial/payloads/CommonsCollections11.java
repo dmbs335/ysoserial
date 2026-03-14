@@ -48,7 +48,7 @@ import java.io.Serializable;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 @Dependencies({"org.apache.commons:commons-collections4:4.0"})
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.SU18 })
 public class CommonsCollections11 extends PayloadRunner implements ObjectPayload<Serializable> {
 
 	public Serializable getObject(final String command) throws Exception {

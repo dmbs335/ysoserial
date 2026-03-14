@@ -48,7 +48,7 @@ import ysoserial.payloads.util.Reflections;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 @Dependencies({"org.apache.click:click-nodeps:2.3.0", "javax.servlet:javax.servlet-api:3.1.0"})
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.ARTSPLOIT })
 public class Click2 extends PayloadRunner implements ObjectPayload<java.util.TreeSet> {
 
 	public java.util.TreeSet getObject(final String command) throws Exception {

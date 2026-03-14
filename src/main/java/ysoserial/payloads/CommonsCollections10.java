@@ -62,7 +62,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 @Dependencies({"commons-collections:commons-collections:3.1"})
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.SU18 })
 public class CommonsCollections10 extends PayloadRunner implements ObjectPayload<Serializable> {
 
 	public Serializable getObject(final String command) throws Exception {

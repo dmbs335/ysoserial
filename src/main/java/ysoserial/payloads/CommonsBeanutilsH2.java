@@ -49,7 +49,7 @@ import ysoserial.payloads.util.Reflections;
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
 @Dependencies({"commons-beanutils:commons-beanutils:1.9.2"})
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.MOGWAI_HMUNCH })
 public class CommonsBeanutilsH2 extends PayloadRunner implements ObjectPayload<PriorityQueue> {
 
 	public PriorityQueue getObject(final String command) throws Exception {

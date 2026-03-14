@@ -17,7 +17,7 @@ import ysoserial.payloads.util.PayloadRunner;
 import ysoserial.payloads.util.Reflections;
 
 /*
-	Gadget chain (JDD, IEEE S&P 2024 — BofeiC/JDD-PocLearning):
+	Gadget chain (Synacktiv/marshalsec — CollectionKey variant):
 		ObjectInputStream.readObject()
 			ConcurrentHashMap.readObject()
 				ConcurrentHashMap.putVal()
@@ -41,7 +41,7 @@ import ysoserial.payloads.util.Reflections;
  */
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.MBECHLER, Authors.HUGO_SYN })
 @PayloadTest(precondition = "isApplicableJavaVersion")
 public class HibernateCK implements ObjectPayload<ConcurrentHashMap>, DynamicDependencies {
 

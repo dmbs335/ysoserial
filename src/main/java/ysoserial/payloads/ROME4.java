@@ -40,7 +40,7 @@ import ysoserial.payloads.util.Reflections;
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
 @Dependencies("rome:rome:1.0")
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.MBECHLER })
 public class ROME4 extends PayloadRunner implements ObjectPayload<ConcurrentHashMap> {
 
 	public ConcurrentHashMap getObject(final String command) throws Exception {

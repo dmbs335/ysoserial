@@ -27,7 +27,7 @@ import ysoserial.payloads.util.Reflections;
 	Double evasion: LinkedHashSet root + InstantiateTransformer sink.
 	Combines CC12's root bypass with CC14's sink bypass.
 
-	Discovered by combining K1 (@zema1) with LinkedHashSet trigger (@BofeiC).
+	Discovered by combining K1 (@zema1) with LinkedHashSet trigger (@su18).
 
 	Gadget chain:
 		ObjectInputStream.readObject()
@@ -59,7 +59,7 @@ import ysoserial.payloads.util.Reflections;
 
 @SuppressWarnings({"rawtypes", "unchecked", "restriction"})
 @Dependencies({"commons-collections:commons-collections:3.1"})
-@Authors({ Authors.ZEMA1, Authors.BOFEI_CHEN })
+@Authors({ Authors.ZEMA1, Authors.SU18 })
 public class CommonsCollections15 extends PayloadRunner implements ObjectPayload<Serializable> {
 
 	public Serializable getObject(final String command) throws Exception {

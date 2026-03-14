@@ -45,7 +45,7 @@ import ysoserial.payloads.util.Reflections;
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
 @Dependencies({"commons-beanutils:commons-beanutils:1.9.2"})
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.SU18 })
 public class SignedObjectWrap extends PayloadRunner implements ObjectPayload<PriorityQueue> {
 
 	public PriorityQueue getObject(final String command) throws Exception {

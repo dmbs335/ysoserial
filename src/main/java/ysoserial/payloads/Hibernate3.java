@@ -42,7 +42,7 @@ import ysoserial.payloads.util.Reflections;
 		hibernate-core 4.3.x or 5.x
  */
 
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.MBECHLER })
 @PayloadTest(precondition = "isApplicableJavaVersion")
 public class Hibernate3 extends PayloadRunner implements ObjectPayload<ConcurrentHashMap>, DynamicDependencies {
 

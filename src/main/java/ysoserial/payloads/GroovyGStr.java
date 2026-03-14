@@ -11,7 +11,7 @@ import ysoserial.payloads.util.PayloadRunner;
 import ysoserial.payloads.util.Reflections;
 
 /*
-	Gadget chain (JDD, IEEE S&P 2024 — BofeiC/JDD-PocLearning):
+	Gadget chain (su18/ysoserial — ConcurrentHashMap variant):
 		ObjectInputStream.readObject()
 			ConcurrentHashMap.readObject()
 				GStringImpl.hashCode()
@@ -34,7 +34,7 @@ import ysoserial.payloads.util.Reflections;
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
 @Dependencies({"org.codehaus.groovy:groovy:2.4.3"})
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.FROHOFF })
 public class GroovyGStr extends PayloadRunner implements ObjectPayload<ConcurrentHashMap> {
 
 	public ConcurrentHashMap getObject(final String command) throws Exception {

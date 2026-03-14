@@ -39,7 +39,7 @@ import ysoserial.payloads.util.Reflections;
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
 @Dependencies({"org.wildfly:wildfly-connector:26.0.1.Final"})
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.HUGO_SYN })
 public class WildFly1 extends PayloadRunner implements ObjectPayload<DataSource> {
 
 	public DataSource getObject(final String jndiUrl) throws Exception {

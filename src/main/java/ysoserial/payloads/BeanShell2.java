@@ -37,7 +37,7 @@ import ysoserial.payloads.util.Reflections;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 @Dependencies({"org.beanshell:bsh:2.0b5"})
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.SU18 })
 public class BeanShell2 extends PayloadRunner implements ObjectPayload<TreeSet> {
 
 	public TreeSet getObject(String command) throws Exception {

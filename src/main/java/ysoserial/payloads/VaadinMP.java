@@ -15,7 +15,7 @@ import ysoserial.payloads.util.PayloadRunner;
 import ysoserial.payloads.util.Reflections;
 
 /*
-	Gadget chain (JDD, IEEE S&P 2024 -- BofeiC/JDD-PocLearning):
+	Gadget chain (@kai_ullrich — MethodProperty variant):
 		ObjectInputStream.readObject()
 			ConcurrentHashMap.readObject()
 				SimpleEntry.equals() (hash collision, XOR commutative)
@@ -43,7 +43,7 @@ import ysoserial.payloads.util.Reflections;
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
 @Dependencies({ "com.vaadin:vaadin-server:7.7.14", "com.vaadin:vaadin-shared:7.7.14" })
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.KULLRICH })
 @PayloadTest(precondition = "isApplicableJavaVersion")
 public class VaadinMP extends PayloadRunner implements ObjectPayload<ConcurrentHashMap> {
 

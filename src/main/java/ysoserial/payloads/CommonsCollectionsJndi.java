@@ -47,7 +47,7 @@ import java.util.Map;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 @Dependencies({"commons-collections:commons-collections:3.1"})
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.MBECHLER })
 public class CommonsCollectionsJndi extends PayloadRunner implements ObjectPayload<Serializable> {
 
 	public Serializable getObject(final String jndiUrl) throws Exception {

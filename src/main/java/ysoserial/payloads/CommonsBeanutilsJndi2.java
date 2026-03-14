@@ -49,7 +49,7 @@ import ysoserial.payloads.util.Reflections;
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
 @Dependencies({"commons-beanutils:commons-beanutils:1.9.2", "org.apache.commons:commons-collections4:4.0"})
-@Authors({ Authors.BOFEI_CHEN })
+@Authors({ Authors.SU18 })
 public class CommonsBeanutilsJndi2 extends PayloadRunner implements ObjectPayload<TreeBag> {
 
 	public TreeBag getObject(final String jndiUrl) throws Exception {

@@ -72,7 +72,7 @@ These bypass first-layer type filters by wrapping an inner payload:
 
 | Chain | Discoverer | Mechanism |
 |-------|-----------|-----------|
-| `SignedObjectWrap` | @BofeiC | `SignedObject` → nested `ObjectInputStream` |
+| `SignedObjectWrap` | @su18 | `SignedObject` → nested `ObjectInputStream` |
 | `C3P02` | @mbechler | C3P0 `WrapperConnectionPoolDataSource` hex-encoded nested deser |
 
 ### Other New Chains
@@ -81,15 +81,15 @@ These bypass first-layer type filters by wrapping an inner payload:
 |-------|-----------|-------------|
 | `ROME2` | @mbechler | ROME via `BadAttributeValueExpException` + `Unsafe.putObject()` (JDK 17 val field bypass) |
 | `ROME3` | @mbechler | ROME via `Hashtable` with manual Entry construction |
-| `GroovyGStr` | @BofeiC | Groovy `GString` + `LazyMap` — no `AnnotationInvocationHandler` needed |
-| `HibernateCK` | @BofeiC | Hibernate `CacheKey` entry (Hibernate 4.x only) |
-| `VaadinMP` | @BofeiC | Vaadin `MethodProperty` → arbitrary getter invocation |
-| `CommonsBeanutils3` | @BofeiC | CB + TreeBag entry — bypasses PriorityQueue AND InvokerTransformer filters |
-| `Click2` | @BofeiC | Apache Click via TreeSet entry — bypasses PriorityQueue filters |
-| `BeanShell2` | @BofeiC | BeanShell interpreter via TreeSet entry — bypasses PriorityQueue filters |
+| `GroovyGStr` | @frohoff | Groovy `GString` + `LazyMap` — no `AnnotationInvocationHandler` needed |
+| `HibernateCK` | @mbechler, @hugo-syn | Hibernate `CacheKey` entry (Hibernate 4.x only) |
+| `VaadinMP` | @kullrich | Vaadin `MethodProperty` → arbitrary getter invocation |
+| `CommonsBeanutils3` | @su18 | CB + TreeBag entry — bypasses PriorityQueue AND InvokerTransformer filters |
+| `Click2` | @artsploit | Apache Click via TreeSet entry — bypasses PriorityQueue filters |
+| `BeanShell2` | @su18 | BeanShell interpreter via TreeSet entry — bypasses PriorityQueue filters |
 | `CommonsCollections13` | @dmbs335 † | CC4 TiedMapEntry + CC3 LazyMap + LinkedHashSet — cross-library + root bypass |
 | `CommonsCollections14` | @zema1 | CC6 trigger + InstantiateTransformer sink — InvokerTransformer filter bypass |
-| `CommonsCollections15` | @zema1, @BofeiC | LinkedHashSet + InstantiateTransformer — double evasion (root + sink) |
+| `CommonsCollections15` | @zema1, @su18 | LinkedHashSet + InstantiateTransformer — double evasion (root + sink) |
 
 > **†** Discovered by @dmbs335 via automated fuzzing ([web-fuzzer](https://github.com/dmbs335/web-fuzzer), 2026-03-14). CC13 (cross-library CC4+CC3) and CCJndi2 (cross-library JNDI) are novel chains found by type-aware mutation and cross-library chain splicing.
 
@@ -108,21 +108,21 @@ Payload                Authors                                Dependencies
 AspectJWeaver          @Jang                                  aspectjweaver:1.9.2, commons-collections:3.2.2
 Atomikos               @pwntester, @sciccone                  transactions-osgi:4.0.6, jta:1.1
 BeanShell1             @pwntester, @cschneider4711            bsh:2.0b5
-BeanShell2             @BofeiC                                bsh:2.0b5
+BeanShell2             @su18                                  bsh:2.0b5
 C3P0                   @mbechler                              c3p0:0.9.5.2, mchange-commons-java:0.2.11
 C3P02                  @mbechler                              c3p0:0.9.5.2, commons-collections:3.1
 Ceylon                 @kai_ullrich                           ceylon.language:1.3.3
 Click1                 @artsploit                             click-nodeps:2.3.0, javax.servlet-api:3.1.0
-Click2                 @BofeiC                                click-nodeps:2.3.0, javax.servlet-api:3.1.0
+Click2                 @artsploit                             click-nodeps:2.3.0, javax.servlet-api:3.1.0
 Clojure                @JackOfMostTrades                      clojure:1.8.0
 Clojure2               @JackOfMostTrades                      clojure:1.8.0
 CommonsBeanutils1      @frohoff                               commons-beanutils:1.9.2, commons-collections:3.1
 CommonsBeanutils2      @k4n5ha0                               commons-beanutils:1.9.2
-CommonsBeanutils3      @BofeiC                                commons-beanutils:1.9.2, commons-collections4:4.0
-CommonsBeanutils4      @BofeiC                                commons-beanutils:1.9.2, commons-collections:3.1
-CommonsBeanutilsH2     @BofeiC                                commons-beanutils:1.9.2
+CommonsBeanutils3      @su18                                  commons-beanutils:1.9.2, commons-collections4:4.0
+CommonsBeanutils4      @su18                                  commons-beanutils:1.9.2, commons-collections:3.1
+CommonsBeanutilsH2     @hmunch                                commons-beanutils:1.9.2
 CommonsBeanutilsJndi   @frohoff                               commons-beanutils:1.9.2
-CommonsBeanutilsJndi2  @BofeiC                                commons-beanutils:1.9.2, commons-collections4:4.0
+CommonsBeanutilsJndi2  @su18                                  commons-beanutils:1.9.2, commons-collections4:4.0
 CommonsCollections1    @frohoff                               commons-collections:3.1
 CommonsCollections2    @frohoff                               commons-collections4:4.0
 CommonsCollections3    @frohoff                               commons-collections:3.1
@@ -132,21 +132,21 @@ CommonsCollections6    @matthias_kaiser                       commons-collection
 CommonsCollections7    @scristalli, @hanyrax, @EdoardoVignati commons-collections:3.1
 CommonsCollections8    @navalorenzo                           commons-collections4:4.0
 CommonsCollections9    @meizjm3i                              commons-collections:3.2.1
-CommonsCollections10   @BofeiC                                commons-collections:3.1
-CommonsCollections11   @BofeiC                                commons-collections4:4.0
-CommonsCollections12   @BofeiC                                commons-collections:3.1
+CommonsCollections10   @su18                                  commons-collections:3.1
+CommonsCollections11   @su18                                  commons-collections4:4.0
+CommonsCollections12   @su18                                  commons-collections:3.1
 CommonsCollections13   @dmbs335 †                             commons-collections:3.1, commons-collections4:4.0
 CommonsCollections14   @zema1                                 commons-collections:3.1
-CommonsCollections15   @zema1, @BofeiC                        commons-collections:3.1
-CommonsCollectionsJndi @BofeiC                                commons-collections:3.1
+CommonsCollections15   @zema1, @su18                          commons-collections:3.1
+CommonsCollectionsJndi @mbechler                              commons-collections:3.1
 CommonsCollectionsJndi2 @dmbs335 †                            commons-collections:3.1, commons-collections4:4.0
 FileUpload1            @mbechler                              commons-fileupload:1.3.1, commons-io:2.4
 Groovy1                @frohoff                               groovy:2.3.9
-GroovyGStr             @BofeiC                                groovy:2.4.3
+GroovyGStr             @frohoff                               groovy:2.4.3
 Hibernate1             @mbechler                              hibernate-core:4.3.11.Final
 Hibernate2             @mbechler                              hibernate-core:4.3.11.Final
-Hibernate3             @BofeiC                                hibernate-core:4.3.11.Final
-HibernateCK            @BofeiC                                hibernate-core:4.3.11.Final
+Hibernate3             @mbechler                              hibernate-core:4.3.11.Final
+HibernateCK            @mbechler, @hugo-syn                   hibernate-core:4.3.11.Final
 Jackson1               @Y4tacker, @mbechler                   jackson-databind:2.12.7.1
 Jackson2               @Y4tacker, @mbechler                   jackson-databind:2.12.7.1
 JBossInterceptors1     @matthias_kaiser                       javassist:3.12.1.GA, jboss-interceptor-core:2.0.0.Final
@@ -164,19 +164,19 @@ Myfaces2               @mbechler
 ROME                   @mbechler                              rome:1.0
 ROME2                  @mbechler                              rome:1.0
 ROME3                  @mbechler                              rome:1.0
-ROME4                  @BofeiC                                rome:1.0
-ROMEJndi               @BofeiC                                rome:1.0
+ROME4                  @mbechler                              rome:1.0
+ROMEJndi               @mbechler                              rome:1.0
 Scala                  @mbechler                              scala-library:2.12.6
-SignedObjectWrap       @BofeiC                                commons-beanutils:1.9.2
+SignedObjectWrap       @su18                                  commons-beanutils:1.9.2
 Spring1                @frohoff                               spring-core:4.1.4.RELEASE, spring-beans:4.1.4.RELEASE
 Spring2                @mbechler                              spring-core:4.1.4.RELEASE, spring-aop:4.1.4.RELEASE
 SpringJta              @zerothoughts, @sciccone               spring-tx:5.1.7.RELEASE, spring-context:5.1.7.RELEASE
 Struts2JasperReports   @sciccone                              struts2-core:2.5.20
 URLDNS                 @gebl
 Vaadin1                @kai_ullrich                           vaadin-server:7.7.14, vaadin-shared:7.7.14
-VaadinMP               @BofeiC                                vaadin-server:7.7.14, vaadin-shared:7.7.14
+VaadinMP               @kullrich                              vaadin-server:7.7.14, vaadin-shared:7.7.14
 Wicket1                @jacob-baines                          wicket-util:6.23.0, slf4j-api:1.6.4
-WildFly1               @BofeiC                                wildfly-connector:26.0.1.Final
+WildFly1               @hugo-syn                              wildfly-connector:26.0.1.Final
 ```
 
 ## Description

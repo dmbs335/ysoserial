@@ -31,7 +31,11 @@ public @interface Authors {
     String JANG = "Jang";
     String ARTSPLOIT = "artsploit";
     String K4n5ha0 = "k4n5ha0";
-    String BOFEI_CHEN = "BofeiC";  // JDD (S&P 2024)
+    String SU18 = "su18";  // ConcurrentHashMap CC chains, CB3/CB4, SignedObjectWrap, BeanShell2
+    String HUGO_SYN = "hugo-syn";  // WildFly1, Synacktiv research
+    String FIREBASKY = "Firebasky";  // ROME3
+    String MOGWAI_HMUNCH = "hmunch";  // CommonsBeanutilsH2
+    String BOFEI_CHEN = "BofeiC";  // JDD framework
     String ZEMA1 = "zema1";  // CommonsCollections K-series
     String Y4TACKER = "Y4tacker";  // Jackson native deser chains
     String MWULFTANGE = "mwulftange";  // Handcrafted gadgets (Jdk8u20)
