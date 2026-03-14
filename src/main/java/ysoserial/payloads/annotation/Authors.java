@@ -39,7 +39,7 @@ public @interface Authors {
     String ZEMA1 = "zema1";  // CommonsCollections K-series
     String Y4TACKER = "Y4tacker";  // Jackson native deser chains
     String MWULFTANGE = "mwulftange";  // Handcrafted gadgets (Jdk8u20)
-    String DMBS335 = "dmbs335";  // Cross-library (CC13, CCJndi2) + CSLM (CC16, CB5, CBJndi3) + PBQ (CC17, CB6, CBJndi4) + Groovy2 + ROME5/ROMEJndi2
+    String DMBS335 = "dmbs335";  // Cross-library (CC13, CCJndi2) + CSLM (CC16, CB5, CBJndi3) + PBQ (CC17, CB6, CBJndi4) + BidiMap (CC18-23, CC21, CB7, CBJndi5, CCJndi3) + Bag (CC24-25) + toString (CC26-27) + CrossFamily (ROME6, Hibernate4) + Groovy2 + ROME5/ROMEJndi2 + WebLogic1/2 (CVE-2016-3510/0638 wrappers)
 
     String[] value() default {};
 
