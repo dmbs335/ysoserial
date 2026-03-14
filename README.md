@@ -91,7 +91,7 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `CommonsCollections14` | @zema1 | CC6 trigger + InstantiateTransformer sink — InvokerTransformer filter bypass |
 | `CommonsCollections15` | @zema1, @BofeiC | LinkedHashSet + InstantiateTransformer — double evasion (root + sink) |
 
-> **†** Discovered by @dmbs335 via automated differential fuzzing ([web-fuzzer](https://github.com/dmbs335/web-fuzzer), 2026-03-14). CC13 (cross-library CC4+CC3) and CCJndi2 (cross-library JNDI) are novel chains first identified by the fuzzer.
+> **†** Discovered by @dmbs335 via automated fuzzing ([web-fuzzer](https://github.com/dmbs335/web-fuzzer), 2026-03-14). CC13 (cross-library CC4+CC3) and CCJndi2 (cross-library JNDI) are novel chains found by type-aware mutation and cross-library chain splicing.
 
 ### Exploit Tools
 
