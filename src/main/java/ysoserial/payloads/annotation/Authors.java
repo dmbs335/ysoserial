@@ -32,6 +32,9 @@ public @interface Authors {
     String ARTSPLOIT = "artsploit";
     String K4n5ha0 = "k4n5ha0";
     String BOFEI_CHEN = "BofeiC";  // JDD (S&P 2024)
+    String ZEMA1 = "zema1";  // CommonsCollections K-series
+    String Y4TACKER = "Y4tacker";  // Jackson native deser chains
+    String MWULFTANGE = "mwulftange";  // Handcrafted gadgets (Jdk8u20)
 
     String[] value() default {};
 
